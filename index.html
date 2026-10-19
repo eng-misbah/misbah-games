@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta name="google-site-verification" content="Qa3dxBJqzfRt-bgJbGuyGZwimCCGRJJKyRjGHsz_29M" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0b14">
+<title>MISBAH&amp;SHADOW — Beast Merge 4×4 — AI EXACT</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+<style>
+/* BASE AND VARIABLES */
+:root{
+ --bg:#0b0b14;
+ --surface:rgba(255,255,255,.04);
+ --border:rgba(255,255,255,.1);
+ --accent:#ffd166;
+ --accent2:#ff9f1c;
+ --danger:#ef476f;
+ --success:#06d6a0;
+ --text:#fff;
+ --muted:#aaa;
+ --radius:20px;
+ --cell-size:min(17vw,70px);
+ --gap:min(2.5vw,10px);
+ --fast:.18s cubic-bezier(.4,0,.2,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{min-height:100%;background:var(--bg)}
+body{
+ min-height:100vh;min-height:100dvh;
+ padding:calc(14px + env(safe-area-inset-top)) 14px calc(70px + env(safe-area-inset-bottom));
+ display:flex;flex-direction:column;align-items:center;
+ background:#0b0b14;
+ color:var(--text);
+ font-family:"Segoe UI",Tahoma,Arial,sans-serif;
+ overflow-x:hidden;
+ -webkit-tap-highlight-color:transparent;
+ touch-action:manipulation;
+}
+button,input{font:inherit}
+button{-webkit-user-select:none;user-select:none;cursor:pointer}
+
+/* خلفية اللعبة */
+body::before{
+ content:"";
+ position:fixed;
+ inset:0;
+ pointer-events:none;
+ z-index:0;
+ background:
+  radial-gradient(circle at 20% 10%, rgba(255,106,136,.15), transparent 40%),
+  radial-gradient(circle at 80% 20%, rgba(106,180,255,.12), transparent 45%),
+  radial-gradient(circle at 50% 80%, rgba(255,209,102,.08), transparent 55%);
+ filter:blur(10px);
+ animation:ambientGlow 12s ease-in-out infinite alternate;
+}
+@keyframes ambientGlow{0%{opacity:.7;transform:scale(1)}100%{opacity:1;transform:scale(1.1)}}
+body::after{
+ content:"";
+ position:fixed;
+ inset:0;
+ pointer-events:none;
+ z-index:0;
+ background-image:
+  radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,.8), transparent),
+  radial-gradient(1px 1px at 30% 70%, rgba(255,255,255,.6), transparent),
+  radial-gradient(1.5px 1.5px at 50% 30%, rgba(255,255,255,.7), transparent),
+  radial-gradient(1px 1px at 70% 80%, rgba(255,255,255,.5), transparent),
+  radial-gradient(2px 2px at 90% 40%, rgba(255,255,255,.6), transparent),
+  radial-gradient(1px 1px at 20% 90%, rgba(255,255,255,.5), transparent);
+ background-size:220px 220px;
+ animation:particlesFloat 30s linear infinite;
+}
+@keyframes particlesFloat{0%{transform:translateY(0)}100%{transform:translateY(-220px)}}
+
+.lang-toggle{
+ position:fixed;
+ top:calc(14px + env(safe-area-inset-top));
+ right:14px;
+ z-index:3000;
+ background:rgba(255,255,255,.06);
+ border:1px solid rgba(255,255,255,.15);
+ color:#fff;
+ padding:8px 16px;
+ border-radius:25px;
+ font-size:.85rem;
+ font-weight:bold;
+ backdrop-filter:blur(15px);
+ -webkit-backdrop-filter:blur(15px);
+ box-shadow:0 4px 15px rgba(0,0,0,.3);
+ transition:all var(--fast);
+ cursor:pointer;
+}
+.lang-toggle:hover{border-color:var(--accent);box-shadow:0 0 15px rgba(255,209,102,.3);transform:translateY(-1px)}
+.lang-toggle:active{transform:scale(.95)}
+
+.title{
+ margin-top:4px;margin-bottom:4px;
+ font-size:clamp(2rem,7vw,2.8rem);
+ font-weight:900;letter-spacing:2px;line-height:1.1;
+ background:linear-gradient(90deg,#ff006e,#ff9f1c,#ffd166,#06d6a0,#00b4d8,#3a86ff,#8338ec,#ff006e);
+ background-size:300% 100%;
+ -webkit-background-clip:text;background-clip:text;
+ -webkit-text-fill-color:transparent;
+ animation:gradientShift 8s linear infinite;
+ z-index:1;position:relative;
+}
+@keyframes gradientShift{0%{background-position:0% 50%}100%{background-position:300% 50%}}
+.subtitle{color:var(--muted);font-size:.9rem;margin-bottom:16px;z-index:1;position:relative}
+
+.container{
+ width:100%;max-width:560px;padding:18px;border-radius:28px;
+ background:var(--surface);border:1px solid var(--border);
+ box-shadow:0 20px 50px rgba(0,0,0,.5);z-index:1;position:relative;
+}
+
+.grid-wrapper{display:flex;justify-content:center;margin-bottom:18px}
+.grid{position:relative;display:grid;grid-template-columns:repeat(4,var(--cell-size));grid-template-rows:repeat(4,var(--cell-size));gap:var(--gap);direction:ltr;touch-action:none}
+.cell{
+ width:var(--cell-size);height:var(--cell-size);
+ border-radius:50%;
+ display:flex;flex-direction:column;align-items:center;justify-content:center;
+ position:relative;overflow:hidden;
+ border:1px solid rgba(255,255,255,.08);
+ box-shadow:0 5px 12px rgba(0,0,0,.3);
+ transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;
+ cursor:pointer;user-select:none;background:rgba(255,255,255,.03);
+}
+.cell.focused{border-color:var(--accent);box-shadow:0 0 0 2px rgba(255,209,102,.1),0 0 20px rgba(255,209,102,.35),0 5px 12px rgba(0,0,0,.3);transform:scale(1.03)}
+.cell img.animal-icon{width:65%;height:65%;object-fit:contain;pointer-events:none;position:relative;z-index:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}
+.cell input{width:100%;border:0;outline:0;background:transparent;color:inherit;text-align:center;font-weight:900;font-size:.75rem;padding:0;position:relative;z-index:2;caret-color:currentColor;display:none}
+.num-0{background:#1e1e2e;color:transparent}
+.num-1{background:radial-gradient(circle at 38% 38%, rgb(141,195,143), rgb(76,175,80));color:#fff}
+.num-2{background:radial-gradient(circle at 38% 38%, rgb(99,202,216), rgb(0,188,212));color:#fff}
+.num-3{background:radial-gradient(circle at 38% 38%, rgb(117,182,233), rgb(33,150,243));color:#fff}
+.num-4{background:radial-gradient(circle at 38% 38%, rgb(134,144,199), rgb(63,81,181));color:#fff}
+.num-5{background:radial-gradient(circle at 38% 38%, rgb(185,120,196), rgb(156,39,176));color:#fff}
+.num-6{background:radial-gradient(circle at 38% 38%, rgb(156,131,200), rgb(103,58,183));color:#fff}
+.num-7{background:radial-gradient(circle at 38% 38%, rgb(239,178,99), rgb(255,143,0));color:#fff}
+.num-8{background:radial-gradient(circle at 38% 38%, rgb(233,144,116), rgb(244,81,30));color:#fff}
+.num-9{background:radial-gradient(circle at 38% 38%, rgb(225,130,128), rgb(229,57,53));color:#fff}
+.num-10{background:radial-gradient(circle at 38% 38%, rgb(206,112,149), rgb(194,24,91));color:#fff}
+.num-11{background:radial-gradient(circle at 38% 38%, rgb(239,217,99), rgb(255,215,0));color:#111}
+.cell.move-left{animation:moveLeft .2s ease}
+.cell.move-right{animation:moveRight .2s ease}
+.cell.move-up{animation:moveUp .2s ease}
+.cell.move-down{animation:moveDown .2s ease}
+@keyframes moveLeft{0%{transform:translateX(25px);opacity:.7}100%{transform:translateX(0);opacity:1}}
+@keyframes moveRight{0%{transform:translateX(-25px);opacity:.7}100%{transform:translateX(0);opacity:1}}
+@keyframes moveUp{0%{transform:translateY(25px);opacity:.7}100%{transform:translateY(0);opacity:1}}
+@keyframes moveDown{0%{transform:translateY(-25px);opacity:.7}100%{transform:translateY(0);opacity:1}}
+.cell.merged{animation:mergePop .25s ease;z-index:3}
+@keyframes mergePop{0%{transform:scale(.9)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
+.cell.spawn{animation:spawnPop .22s ease}
+@keyframes spawnPop{0%{transform:scale(0);opacity:0}70%{transform:scale(1.1);opacity:1}100%{transform:scale(1);opacity:1}}
+.cell.ai-highlight{box-shadow:0 0 0 3px #ffd166,0 0 20px rgba(255,209,102,.7);animation:highlightPulse 1.5s ease-in-out 2}
+@keyframes highlightPulse{0%,100%{box-shadow:0 0 0 3px #ffd166,0 0 20px rgba(255,209,102,.7)}50%{box-shadow:0 0 0 6px rgba(255,209,102,.4),0 0 35px rgba(255,209,102,.9)}}
+
+.arrow-controls{display:flex;flex-direction:column;align-items:center;gap:6px;margin:2px 0 16px;direction:ltr}
+.arrow-row{display:flex;gap:16px;justify-content:center;align-items:center}
+.arrow-btn{width:50px;height:50px;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,.25);transition:transform .15s,border-color .15s,background .15s}
+.arrow-btn svg{width:24px;height:24px}
+.arrow-btn:hover{border-color:var(--accent);background:rgba(255,209,102,.1);transform:scale(1.04)}
+.arrow-btn:active{transform:scale(.93)}
+.arrow-btn:disabled{opacity:.35;pointer-events:none}
+.arrow-btn.ai-selected{
+    border-color:var(--accent) !important;
+    background:rgba(255,209,102,.12) !important;
+    box-shadow:
+        0 0 0 3px rgba(255,209,102,.35),
+        0 0 20px rgba(255,209,102,.8),
+        0 0 40px rgba(255,209,102,.5),
+        inset 0 0 12px rgba(255,209,102,.25) !important;
+    transform:scale(1.08);
+    animation:arrowGlowPulse 1.6s ease-in-out infinite;
+}
+@keyframes arrowGlowPulse{
+    0%,100%{box-shadow:0 0 0 3px rgba(255,209,102,.35),0 0 20px rgba(255,209,102,.8),0 0 40px rgba(255,209,102,.5),inset 0 0 12px rgba(255,209,102,.25)}
+    50%{box-shadow:0 0 0 6px rgba(255,209,102,.25),0 0 30px rgba(255,209,102,1),0 0 55px rgba(255,209,102,.7),inset 0 0 18px rgba(255,209,102,.35)}
+}
+.action-buttons{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:14px}
+.action-btn{min-height:44px;padding:9px 12px;border-radius:22px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#fff;font-weight:800;cursor:pointer;transition:all var(--fast)}
+.action-btn:hover{border-color:var(--accent);background:rgba(255,209,102,.08)}
+.action-btn:active{transform:scale(.96)}
+.action-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.action-btn.accent{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#151520;border:0;box-shadow:0 4px 15px rgba(255,159,28,.25)}
+.action-btn.danger{color:#ff9bae;background:rgba(239,71,111,.1);border-color:rgba(239,71,111,.5)}
+.result-box{min-height:60px;padding:14px;border-radius:18px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+#result-text{font-weight:800;font-size:1rem}
+.explanation{color:#999;font-size:.8rem;line-height:1.5;margin-top:5px}
+.locked-box{display:none;margin-top:10px;padding:12px;text-align:center;border-radius:18px;background:rgba(239,71,111,.1);border:1px solid rgba(239,71,111,.5)}
+.locked-box p{margin:5px 0 8px;color:#bbb;font-size:.85rem}
+.contact-footer{position:fixed;bottom:8px;left:8px;right:8px;margin:auto;width:max-content;max-width:calc(100% - 16px);padding:6px 14px;border-radius:18px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.08);color:#777;font-size:.68rem;z-index:50;text-align:center}
+.contact-footer a,.lock-contact a{color:#aaa;text-decoration:none;font-weight:800}
+
+.toast{position:fixed;top:calc(15px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-20px);opacity:0;pointer-events:none;z-index:2500;background:rgba(20,20,35,.95);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:10px 16px;box-shadow:0 10px 30px rgba(0,0,0,.4);font-size:.82rem;transition:all .25s ease;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.loading{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:auto;height:auto;margin:0;padding:0;border:0;border-radius:0;
+    background:none;font-size:.85rem;color:#aeb4cc;vertical-align:middle;
+}
+.loading::after{
+    content:"";display:inline-block;width:17px;height:17px;margin-right:8px;
+    border-radius:50%;border:2px solid rgba(255,255,255,.16);
+    border-top-color:#ffd45a;box-sizing:border-box;
+    animation:loadingSpin .7s linear infinite;
+}
+@keyframes loadingSpin{to{transform:rotate(360deg)}}
+
+.picker-overlay{
+    position:fixed;inset:0;z-index:5000;display:none;
+    align-items:center;justify-content:center;
+    background:rgba(0,0,0,.55);backdrop-filter:blur(3px);
+    -webkit-backdrop-filter:blur(3px);
+    padding:20px;
+}
+.picker-overlay.show{display:flex;animation:fadeIn .2s ease}
+.picker-box{
+    background:linear-gradient(145deg,#1a1a2e,#0d0d1a);
+    border:1px solid rgba(255,255,255,.15);
+    border-radius:18px;padding:12px;
+    max-width:300px;width:100%;
+    box-shadow:0 20px 50px rgba(0,0,0,.7);
+    text-align:center;
+    animation:popIn .25s cubic-bezier(.16,1,.3,1);
+}
+@keyframes popIn{from{opacity:0;transform:scale(.85) translateY(20px)}to{opacity:1;transform:none}}
+.picker-box h3{
+    margin:0 0 8px;color:#fff;font-size:.9rem;font-weight:800;
+    background:linear-gradient(90deg,#ffd166,#ff9f1c);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.picker-grid{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:8px;
+}
+.picker-btn{
+    aspect-ratio:1;border-radius:50%;border:2px solid rgba(255,255,255,.15);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    cursor:pointer;transition:all .15s;position:relative;
+    padding:0;
+}
+.picker-btn:hover{transform:scale(1.06);border-color:var(--accent);box-shadow:0 0 12px rgba(255,209,102,.4)}
+.picker-btn:active{transform:scale(.93)}
+.picker-btn img{width:65%;height:65%;object-fit:contain;pointer-events:none;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}
+.picker-btn .lbnum{position:absolute;bottom:1px;right:4px;font-size:.55rem;font-weight:900;color:rgba(255,255,255,.9);text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.picker-cancel{
+    width:100%;padding:7px;border-radius:10px;border:1px solid rgba(255,255,255,.15);
+    background:rgba(255,255,255,.06);color:#bbb;font-weight:800;cursor:pointer;
+    transition:all .15s;font-size:.78rem;
+}
+.picker-cancel:hover{background:rgba(239,71,111,.15);border-color:var(--danger);color:#fff}
+
+.max-overlay{position:fixed;inset:0;z-index:6000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);padding:20px}
+.max-overlay.show{display:flex;animation:fadeIn .25s ease}
+.max-box{width:min(92vw,430px);padding:30px 22px;border-radius:28px;text-align:center;background:linear-gradient(145deg,#21182d,#0d0d1a);border:2px solid #ffd166;box-shadow:0 0 35px rgba(255,209,102,.45),0 25px 70px rgba(0,0,0,.75);animation:maxPop .45s cubic-bezier(.16,1,.3,1)}
+.max-icon{font-size:4rem;line-height:1;margin-bottom:14px}
+.max-box h2{font-size:clamp(1.7rem,7vw,2.5rem);font-weight:1000;color:#ffd166;margin-bottom:10px}
+.max-box p{font-size:1.05rem;color:#fff;margin-bottom:20px}
+.max-close{border:0;border-radius:14px;padding:11px 28px;background:linear-gradient(90deg,#ffd166,#ff9f1c);color:#17120a;font-weight:900;cursor:pointer}
+@keyframes maxPop{from{opacity:0;transform:scale(.7)}60%{transform:scale(1.06)}to{opacity:1;transform:scale(1)}}
+
+.delete-overlay{position:fixed;inset:0;z-index:5500;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.62);backdrop-filter:blur(3px);padding:20px}
+.delete-overlay.show{display:flex;animation:fadeIn .18s ease}
+.delete-box{width:min(90vw,350px);padding:22px;border-radius:22px;background:linear-gradient(145deg,#1a1a2e,#0d0d1a);border:1px solid rgba(255,255,255,.15);box-shadow:0 20px 55px rgba(0,0,0,.75);text-align:center}
+.delete-box h3{font-size:1.05rem;color:#fff;margin-bottom:16px}
+.delete-actions{display:flex;gap:10px}
+.delete-actions button{flex:1;padding:10px;border-radius:12px;font-weight:900;border:1px solid rgba(255,255,255,.15);cursor:pointer}
+.delete-yes{background:rgba(239,71,111,.18);color:#ff9bb2;border-color:rgba(239,71,111,.5)!important}
+.delete-no{background:rgba(255,255,255,.06);color:#ddd}
+
+:root{
+ --ls-bg:#eef3f7;--ls-card:#ffffff;--ls-text:#20293a;--ls-muted:#68738a;
+ --ls-accent:#2f8f7a;--ls-accent-dark:#256f5f;--ls-border:#dde4ec;
+}
+.lock-overlay{
+ position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;
+ padding:20px;background:var(--ls-bg);
+ font-family:'Cairo','Segoe UI',Tahoma,Arial,sans-serif;color:var(--ls-text);
+ transition:opacity .25s ease, visibility .25s ease;
+}
+.lock-overlay.hidden{opacity:0;visibility:hidden;pointer-events:none}
+.lock-language{
+ position:absolute;top:calc(16px + env(safe-area-inset-top));right:16px;z-index:20;
+ display:flex;align-items:center;padding:4px;border-radius:14px;
+ background:var(--ls-card);border:1px solid var(--ls-border);
+}
+.lock-language button{
+ border:0;background:transparent;color:var(--ls-muted);padding:7px 12px;border-radius:10px;
+ font-size:.75rem;font-weight:800;cursor:pointer;
+}
+.lock-language button.active{color:#fff;background:var(--ls-accent)}
+.lock-theme-toggle{
+ position:absolute;top:calc(16px + env(safe-area-inset-top));left:16px;z-index:20;
+ width:38px;height:38px;border-radius:50%;border:1px solid var(--ls-border);
+ background:var(--ls-card);color:var(--ls-text);font-size:1rem;cursor:pointer;
+ display:flex;align-items:center;justify-content:center;padding:0;
+}
+.lock-overlay.theme-dark{--ls-bg:#0e1116;--ls-card:#1a1e25;--ls-text:#eef2f6;--ls-muted:#98a2b0;--ls-accent:#3fae95;--ls-accent-dark:#63c4ad;--ls-border:#2a2f3a}
+.lock-overlay.theme-dark .input-group input{background:#232830;color:var(--ls-text)}
+.lock-overlay.theme-dark .input-group input:focus{background:#262c37}
+.lock-overlay.theme-dark .lock-error{color:#ff7a90;background:rgba(255,90,120,.12)}
+.lock-box{
+ position:relative;width:100%;max-width:420px;max-height:calc(100dvh - 40px);
+ overflow:auto;padding:32px 26px 24px;border-radius:22px;
+ background:var(--ls-card);border:1px solid var(--ls-border);
+ box-shadow:0 10px 30px rgba(30,40,60,.08);
+ text-align:center;scrollbar-width:none;
+ opacity:0;animation:lsFadeIn .35s ease both;
+}
+.lock-box::-webkit-scrollbar{display:none}
+@keyframes lsFadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.lock-icon{
+ width:72px;height:72px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;
+ border-radius:50%;background:rgba(47,143,122,.12);font-size:2rem;
+}
+.lock-box h2{margin:0;color:var(--ls-text);font-size:clamp(1.4rem,6vw,1.7rem);font-weight:900}
+.lock-box p{margin:10px 0 22px;color:var(--ls-muted);font-size:.88rem;line-height:1.7}
+.input-group{position:relative;margin-bottom:14px}
+.input-group input{
+ width:100%;padding:14px 44px 14px 16px;border-radius:14px;border:1px solid var(--ls-border);
+ background:#f7f9fb;color:var(--ls-text);text-align:right;font-size:1rem;outline:none;
+ transition:border-color .2s;
+}
+.input-group .input-icon{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:1.1rem;opacity:.55;pointer-events:none}
+.input-group input:focus{border-color:var(--ls-accent);background:#fff}
+.input-group input.error{border-color:var(--danger);animation:inputShake .3s ease}
+@keyframes inputShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.lock-box #btn-verify{
+ position:relative;width:100%;height:52px;margin-top:4px;border:0;border-radius:14px;
+ color:#fff;font-size:1rem;font-weight:800;cursor:pointer;background:var(--ls-accent);
+ transition:background .2s,transform .15s;
+}
+.lock-box #btn-verify:hover{background:var(--ls-accent-dark)}
+.lock-box #btn-verify:active{transform:scale(.98)}
+.lock-box #btn-verify:disabled{opacity:.6;cursor:wait}
+.lock-box #btn-verify .spinner{display:none;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-left:8px}
+.lock-box #btn-verify.loading .spinner{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lock-status{
+ display:none;margin-top:12px;padding:11px 14px;border-radius:12px;
+ color:var(--ls-accent-dark);background:rgba(47,143,122,.1);font-size:.78rem;
+}
+.lock-status.show{display:block}
+.lock-error{
+ display:none;margin-top:12px;padding:10px 14px;border-radius:12px;
+ color:#b3273f;background:rgba(239,71,111,.08);font-size:.8rem;
+}
+.lock-error.show{display:block;animation:inputShake .3s ease}
+.lock-contact{
+ margin-top:20px;padding-top:18px;color:var(--ls-muted);font-size:.76rem;line-height:1.8;
+ border-top:1px solid var(--ls-border);
+}
+.lock-contact a{
+ display:flex;align-items:center;justify-content:center;gap:8px;width:max-content;max-width:100%;
+ margin:9px auto 0;padding:9px 18px;border-radius:20px;color:var(--ls-accent-dark);text-decoration:none;
+ font-size:.82rem;font-weight:800;background:rgba(47,143,122,.08);border:1px solid rgba(47,143,122,.25);
+}
+.lock-contact a:hover{background:rgba(47,143,122,.14)}
+@media(max-width:500px){
+ .lock-box{max-width:100%;padding:26px 18px 20px;border-radius:20px;max-height:calc(100dvh - 28px)}
+ .lock-icon{width:60px;height:60px;font-size:1.7rem}
+ .lock-box h2{font-size:1.35rem}
+ .lock-box input{height:50px;font-size:.9rem}
+ .lock-box #btn-verify{height:50px}
+ .picker-grid{grid-template-columns:repeat(4,1fr)}
+}
+@media(max-width:390px){
+ :root{--cell-size:19vw;--gap:2.2vw}
+ .container{padding:14px}
+ .arrow-btn{width:46px;height:46px}
+ .arrow-row{gap:14px}
+ .action-buttons{gap:7px}
+ .action-btn{font-size:.78rem;padding:8px 6px}
+}
+@media(min-width:700px){
+ .action-buttons{grid-template-columns:repeat(3,1fr)}
+}
+
+.inbox-btn{position:fixed;top:calc(14px + env(safe-area-inset-top));left:14px;z-index:3000;display:none;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#fff;padding:8px 14px;border-radius:25px;font-size:1rem;backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px);box-shadow:0 4px 15px rgba(0,0,0,.3);cursor:pointer}
+.inbox-btn .dot{position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;border-radius:10px;min-width:18px;height:18px;font-size:.7rem;font-weight:800;display:none;align-items:center;justify-content:center;padding:0 4px}
+.inbox-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3500;display:none;align-items:center;justify-content:center;padding:16px}
+.inbox-overlay.show{display:flex}
+.inbox-box{background:#14141f;border:1px solid var(--border);border-radius:var(--radius);width:min(94vw,460px);max-height:80vh;display:flex;flex-direction:column;color:var(--text)}
+.inbox-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);font-weight:800}
+.inbox-head button{background:none;border:0;color:var(--muted);font-size:1.1rem;cursor:pointer}
+.inbox-list{overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.inbox-msg{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px;font-size:.9rem;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.inbox-msg.unread{border-color:var(--accent)}
+.inbox-msg .mt{font-weight:800;margin-bottom:4px;color:var(--accent)}
+.inbox-msg .md{font-size:.72rem;color:var(--muted);margin-top:6px}
+.inbox-empty{text-align:center;color:var(--muted);padding:24px}
+</style>
+</head>
+<body>
+
+<button class="lang-toggle" id="lang-toggle">EN</button>
+<button class="inbox-btn" id="inbox-btn" aria-label="Messages">✉️<span class="dot" id="inbox-dot"></span></button>
+<div class="inbox-overlay" id="inbox-overlay">
+  <div class="inbox-box">
+    <div class="inbox-head"><span id="inbox-title">📬 الرسائل</span><button type="button" id="inbox-close" aria-label="Close">✖</button></div>
+    <div class="inbox-list" id="inbox-list"></div>
+  </div>
+</div>
+
+<!-- شاشة القفل -->
+<div class="lock-overlay" id="lock-overlay">
+    <button type="button" class="lock-theme-toggle" id="lock-theme-toggle" aria-label="تبديل اللون">🌙</button>
+    <div class="lock-language">
+        <button type="button" class="active" id="lang-ar">العربية</button>
+        <button type="button" id="lang-en">EN</button>
+    </div>
+    <div class="lock-box">
+        <div class="lock-icon">🔐</div>
+        <h2 data-i18n="lock_title">منطقة الوصول</h2>
+        <p data-i18n="lock_desc">هذا الموقع محمي بنظام وصول خاص.<br>أدخل بياناتك للمتابعة.</p>
+        <div class="input-group">
+            <span class="input-icon">📱</span>
+            <input type="text" id="user-number" placeholder="ادخل رقم المملكة" autocomplete="off" inputmode="numeric" data-i18n-ph="num_ph">
+        </div>
+        <div class="input-group">
+            <span class="input-icon">🔑</span>
+            <input type="text" id="user-password" placeholder="اكتب اسم التحالف" autocomplete="off" data-i18n-ph="pass_ph">
+        </div>
+        <button type="button" id="btn-verify">
+            🚀 دخول إلى الموقع <span class="spinner"></span>
+        </button>
+        <div class="lock-error" id="lock-error"></div>
+        <div class="lock-status" id="lock-status"></div>
+        <div class="lock-contact">
+            <span data-i18n="contact_prompt">للحصول على الموافقة على طلب الدخول، تواصل معنا عبر Telegram</span>
+            <br>
+            <a href="https://t.me/Misbah128" target="_blank" rel="noopener noreferrer">✈️ @Misbah128</a>
+        </div>
+    </div>
+</div>
+
+<!-- نافذة اختيار الحيوان -->
+<div class="picker-overlay" id="picker-overlay">
+    <div class="picker-box">
+        <h3>🐾 اختر الحيوان</h3>
+        <div class="picker-grid" id="picker-grid"></div>
+        <button class="picker-cancel" id="picker-cancel">✖ إلغاء</button>
+    </div>
+</div>
+
+<div class="delete-overlay" id="delete-overlay">
+    <div class="delete-box">
+        <h3 id="delete-question">هل تريد حذف هذا الحيوان؟</h3>
+        <div class="delete-actions">
+            <button class="delete-yes" id="delete-yes">نعم</button>
+            <button class="delete-no" id="delete-no">لا</button>
+        </div>
+    </div>
+</div>
+
+<div class="max-overlay" id="max-overlay">
+    <div class="max-box">
+        <div class="max-icon">🏆</div>
+        <h2 data-i18n="max_level_title">🎉 تهانينا!</h2>
+        <p data-i18n="max_level_message">وصلت للمستوى الأقصى</p>
+        <button class="max-close" id="max-close" data-i18n="max_level_close">متابعة</button>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="title">MISBAH&amp;SHADOW</div>
+<div class="subtitle" data-i18n="subtitle">🎮 Beast Merge 4×4 — AI EXACT</div>
+
+<div class="container">
+    <div class="grid-wrapper">
+        <div class="grid" id="grid" aria-label="لوحة اللعبة"></div>
+    </div>
+    <div class="arrow-controls">
+        <div class="arrow-row">
+            <button class="arrow-btn" id="btn-up" aria-label="أعلى"><svg viewBox="0 0 24 24" fill="#1E90FF"><path d="M12 2 L22 12 H16 V22 H8 V12 H2 Z"/></svg></button>
+        </div>
+        <div class="arrow-row">
+            <button class="arrow-btn" id="btn-left" aria-label="يسار"><svg viewBox="0 0 24 24" fill="#1E90FF"><path d="M2 12 L12 2 L12 8 H22 V16 H12 V22 Z"/></svg></button>
+            <button class="arrow-btn" id="btn-down" aria-label="أسفل"><svg viewBox="0 0 24 24" fill="#1E90FF"><path d="M12 22 L2 12 H8 V2 H16 V12 H22 Z"/></svg></button>
+            <button class="arrow-btn" id="btn-right" aria-label="يمين"><svg viewBox="0 0 24 24" fill="#1E90FF"><path d="M22 12 L12 2 L12 8 H2 V16 H12 V22 Z"/></svg></button>
+        </div>
+    </div>
+    <div class="action-buttons">
+        <button class="action-btn accent" id="btn-best" data-i18n="best_move">🤖 أفضل حركة</button>
+        <button class="action-btn" id="btn-undo" data-i18n="undo">↩️ تراجع</button>
+        <button class="action-btn" id="btn-clear" data-i18n="clear">🧹 مسح</button>
+        <button class="action-btn" id="btn-smart-swap" data-i18n="smart_swap">🔄 تبديل ذكي</button>
+        <button class="action-btn" id="btn-smart-upgrade" data-i18n="smart_upgrade">⬆️ رفع ذكي</button>
+        <button class="action-btn danger" id="btn-suggest-delete" data-i18n="smart_delete">🗑️ اقتراح حذف</button>
+    </div>
+    <div class="result-box">
+        <div id="result-text" data-i18n="default_result">اضغط على بلاطة فاضية لاختيار حيوان أو استخدم الأسهم للدمج</div>
+        <div class="explanation" id="explanation"></div>
+    </div>
+    <div class="locked-box" id="locked-box">
+        <strong data-i18n="locked_title">⚠️ اللعبة مقفلة!</strong>
+        <p><span data-i18n="delete_suggest">أفضل بلاطة لحذفها:</span> <span id="suggested-cell" style="font-weight:900;color:var(--accent)"></span></p>
+        <button class="action-btn danger" id="btn-delete-suggested" data-i18n="delete_btn">🗑️ احذفها</button>
+    </div>
+</div>
+
+<div class="contact-footer"><span data-i18n="footer_contact">لتعديل أو اقتراح أي تطوير تواصل مع:</span> <a href="https://t.me/Misbah128" target="_blank" rel="noopener">@Misbah128</a></div>
+<script>
+"use strict";
+
+/* FIREBASE CONFIG */
+const _a5 = {
+ apiKey: "AIzaSyCufRPpHZZZvOFOHKKs5gIL_nzl7-xDFgQ",
+ authDomain: "misbah-game-b0525.firebaseapp.com",
+ databaseURL: "https://misbah-game-b0525-default-rtdb.europe-west1.firebasedatabase.app",
+ projectId: "misbah-game-b0525",
+ storageBucket: "misbah-game-b0525.firebasestorage.app",
+ messagingSenderId: "761384753365",
+ appId: "1:761384753365:web:13cc371fc37aa769f6aa5c"
+};
+firebase.initializeApp(_a5);
+const _a17 = firebase.database();
+const _a16 = firebase.auth();
+
+(async function _a19() {
+ try { await _a16.setPersistence(firebase.auth.Auth.Persistence.LOCAL); }
+ catch(e) { try { await _a16.setPersistence(firebase.auth.Auth.Persistence.NONE); } catch(e2) {} }
+})();
+
+/* TRANSLATIONS */
+const translations = {
+ ar: {
+  lock_title: "منطقة الوصول",
+  lock_desc: "هذا الموقع محمي بنظام وصول خاص.<br>أدخل بياناتك للمتابعة.",
+  num_ph: "ادخل رقم المملكة",
+  pass_ph: "اكتب اسم التحالف",
+  send_req: "🚀 دخول إلى الموقع ",
+  pending: "🟡 في انتظار مراجعة طلب الدخول...",
+  contact_prompt: "للحصول على الموافقة على طلب الدخول، تواصل معنا عبر Telegram",
+  subtitle: "🎮 Beast Merge 4×4 — AI EXACT",
+  best_move: "🤖 أفضل حركة", undo: "↩️ تراجع", clear: "🧹 مسح",
+  smart_swap: "🔄 تبديل ذكي", smart_upgrade: "⬆️ رفع ذكي", smart_delete: "🗑️ اقتراح حذف",
+  default_result: "اضغط على بلاطة فاضية لاختيار حيوان أو استخدم الأسهم للدمج",
+  locked_title: "⚠️ اللعبة مقفلة!", delete_suggest: "أفضل بلاطة لحذفها:", delete_btn: "🗑️ احذفها",
+  footer_contact: "لتعديل أو اقتراح أي تطوير تواصل مع:",
+  auth_fail: "❌ فشل المصادقة", write_fail: "❌ تعذر إرسال الطلب",
+  enter_both: "⚠️ أدخل رقم المملكة واسم التحالف أولًا",
+  approved: "تم السماح بالدخول ✅", rejected: "❌ تم رفض طلب الدخول",
+  blocked: "🔒 الدخول محظور، يرجى التواصل معنا عبر التليجرام", deleted: "🔒 تم إلغاء الوصول من قبل الإدارة",
+  move_done: "تم التنفيذ ✅", move_impossible: "الحركة غير ممكنة",
+  board_locked: "⚠️ اللعبة مقفلة!", board_free: "✅ اللعبة ليست مقفلة",
+  no_moves: "لا توجد حركة مناسبة", ai_analysis: "تحليل كامل للذكاء الاصطناعي",
+  thinking: "بحلّل اللوحة...",
+  swap_done: "🔄 تم التبديل الذكي", no_swap: "لا يوجد تبديل مفيد حاليًا",
+  upgrade_done: "⬆️ تم الرفع الذكي", no_upgrade: "لا توجد خلية مناسبة",
+  delete_done: "🗑️ تم حذف البلاطة", grid_empty: "اللوحة فارغة", delete_warning: "لا يوجد حذف آمن حاليًا",
+  enter_first: "أدخل أرقام اللعبة أولًا.", loading: "جارٍ التحميل...",
+  cleared: "تم مسح اللوحة", undo_done: "↩️ تم التراجع عن آخر حركة",
+  no_undo: "لا توجد حركة للتراجع عنها", clear_confirm: "هل تريد مسح اللوحة بالكامل؟",
+  max_level: "🎉 تهانينا! وصلت للمستوى الأقصى!",
+  max_level_title: "🎉 تهانينا!", max_level_message: "وصلت للمستوى الأقصى", max_level_close: "متابعة",
+  delete_question: "هل تريد حذف هذا الحيوان؟", delete_yes: "نعم", delete_no: "لا"
+ },
+ en: {
+  lock_title: "Access Zone",
+  lock_desc: "This website is protected by a private access system.<br>Enter your data to continue.",
+  num_ph: "Enter kingdom number",
+  pass_ph: "Enter alliance name",
+  send_req: "🚀 Enter site ",
+  pending: "🟡 Waiting for request review...",
+  contact_prompt: "To get approval for your access request, contact us via Telegram",
+  subtitle: "🎮 Beast Merge 4×4 — AI EXACT",
+  best_move: "🤖 Best Move", undo: "↩️ Undo", clear: "🧹 Clear",
+  smart_swap: "🔄 Smart Swap", smart_upgrade: "⬆️ Smart Upgrade", smart_delete: "🗑️ Suggest Delete",
+  default_result: "Tap empty tile to pick animal or use arrows to merge",
+  locked_title: "⚠️ Game Locked!", delete_suggest: "Best tile to delete:", delete_btn: "🗑️ Delete",
+  footer_contact: "To modify or suggest improvements, contact:",
+  auth_fail: "❌ Authentication failed", write_fail: "❌ Failed to send request",
+  enter_both: "⚠️ Enter kingdom number and alliance name first",
+  approved: "Access granted ✅", rejected: "❌ Request rejected",
+  blocked: "🔒 Access is blocked, please contact us via Telegram", deleted: "🔒 Access revoked by admin",
+  move_done: "Move done ✅", move_impossible: "Move impossible",
+  board_locked: "⚠️ Game locked!", board_free: "✅ Board has moves",
+  no_moves: "No suitable move", ai_analysis: "AI Full Analysis",
+  thinking: "Analyzing board...",
+  swap_done: "🔄 Smart swap done", no_swap: "No useful swap found",
+  upgrade_done: "⬆️ Smart upgrade done", no_upgrade: "No suitable cell",
+  delete_done: "🗑️ Tile deleted", grid_empty: "Board is empty", delete_warning: "No safe deletion right now",
+  enter_first: "Enter game numbers first.", loading: "Loading...",
+  cleared: "Board cleared", undo_done: "↩️ Undo successful",
+  no_undo: "No move to undo", clear_confirm: "Clear the entire board?",
+  max_level: "🎉 Congratulations! You reached the highest level!",
+  max_level_title: "🎉 Congratulations!", max_level_message: "You reached the highest level", max_level_close: "Continue",
+  delete_question: "Do you want to delete this animal?", delete_yes: "Yes", delete_no: "No"
+ }
+};
+
+let currentLang = localStorage.getItem('lang') || 'ar';
+function t(key) { return translations[currentLang]?.[key] || translations.ar[key] || key; }
+function applyLanguage(lang) {
+ currentLang = lang;
+ localStorage.setItem('lang', lang);
+ document.documentElement.lang = lang;
+ document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+ document.querySelectorAll('[data-i18n]').forEach(el => { const key = el.getAttribute('data-i18n'); if (key && translations[lang]?.[key]) el.innerHTML = translations[lang][key]; });
+ document.querySelectorAll('[data-i18n-ph]').forEach(el => { const key = el.getAttribute('data-i18n-ph'); if (key && translations[lang]?.[key]) el.placeholder = translations[lang][key]; });
+ document.getElementById('lang-toggle').textContent = lang === 'ar' ? 'EN' : 'AR';
+ const langAr = document.getElementById('lang-ar');
+ const langEn = document.getElementById('lang-en');
+ if (langAr && langEn) {
+  langAr.classList.toggle('active', lang === 'ar');
+  langEn.classList.toggle('active', lang === 'en');
+ }
+}
+document.getElementById('lang-toggle').addEventListener('click', () => applyLanguage(currentLang === 'ar' ? 'en' : 'ar'));
+document.getElementById('lang-ar')?.addEventListener('click', () => applyLanguage('ar'));
+document.getElementById('lang-en')?.addEventListener('click', () => applyLanguage('en'));
+
+/* CONSTANTS & GAME BOARD BASE */
+const G = 4;
+const SIZE = 4;
+const MAX_HISTORY = 100;
+const DIRS = ['up', 'down', 'left', 'right'];
+const MAX_LEVEL = 11;
+
+const A = {
+  1: { score: 2 }, 2: { score: 4 }, 3: { score: 8 }, 4: { score: 16 },
+  5: { score: 32 }, 6: { score: 64 }, 7: { score: 128 }, 8: { score: 256 },
+  9: { score: 512 }, 10: { score: 1024 }, 11: { score: 2048 }
+};
+
+let board = createEmptyGrid();
+let historyStack = [];
+let isBusy = false;
+let selectedCellForPick = null;
+let suggestedDeletion = null;
+let aiSuggestion = null;
+
+const animalImages={
+ 1:"Camel.png", 2:"Eagle.png", 3:"Panther.png", 4:"Lion.png",
+ 5:"Wolf.png", 6:"Seahorse.png", 7:"Horse.png", 8:"Bear.png",
+ 9:"Elephant.png", 10:"Bull.png", 11:"Spirit.png"
+};
+
+function createEmptyGrid(){ return Array.from({length:G},()=>Array(G).fill(null)); }
+function cloneGrid(g){ return g.map(row=>row.slice()); }
+function isGridEmpty(g){ return g.every(row=>row.every(v=>!v)); }
+
+/* EXACT MERGE ENGINE */
+function mergeRow(row){
+  const nums = row.filter(Boolean);
+  let sc=0, out=[], flags=[], i=0;
+  while(i < nums.length){
+    if(i+1 < nums.length && nums[i]===nums[i+1] && nums[i]<11){
+      out.push(nums[i]+1); flags.push(true); sc+=A[nums[i]+1].score; i+=2;
+    } else {
+      out.push(nums[i]); flags.push(false); i++;
+    }
+  }
+  while(out.length < G){ out.push(null); flags.push(false); }
+  return {row:out, sc, flags};
+}
+
+function transpose(b){
+  return Array(G).fill(null).map((_,c)=>Array(G).fill(null).map((_,r)=>b[r][c]));
+}
+
+function shift(boardState, dir){
+  let b = boardState.map(r=>r.slice());
+  let tot = 0;
+  let mm  = Array(G).fill(null).map(()=>Array(G).fill(false));
+
+  function applyLeft(rows){
+    return rows.map((row, ri)=>{
+      const {row:nr, sc, flags} = mergeRow(row);
+      tot += sc;
+      flags.forEach((f,ci)=>{ if(f) mm[ri][ci]=true; });
+      return nr;
+    });
+  }
+
+  if(dir==='left'){
+    b = applyLeft(b);
+  } else if(dir==='right'){
+    const rev    = b.map(r=>r.slice().reverse());
+    const merged = applyLeft(rev);
+    b  = merged.map(r=>r.slice().reverse());
+    mm = mm.map(r=>r.slice().reverse());
+  } else if(dir==='up'){
+    const t      = transpose(b);
+    const merged = applyLeft(t);
+    mm = transpose(mm);
+    b  = transpose(merged);
+  } else if(dir==='down'){
+    const t      = transpose(b);
+    const rev    = t.map(r=>r.slice().reverse());
+    const merged = applyLeft(rev);
+    const unrev  = merged.map(r=>r.slice().reverse());
+    b  = transpose(unrev);
+    mm = transpose(mm.map(r=>r.slice().reverse()));
+  }
+
+  return {b, tot, mm};
+}
+
+function boardsEq(a, b){
+  for(let r=0;r<G;r++)
+    for(let c=0;c<G;c++)
+      if((a[r][c]||null) !== (b[r][c]||null)) return false;
+  return true;
+}
+
+function isValidMove(b, dir) {
+  const { b: nb } = shift(b, dir);
+  return !boardsEq(b, nb);
+}
+
+function canMove(b) {
+  return DIRS.some(d => isValidMove(b, d));
+}
+
+/* WORKER AI ENGINE INLINE */
+const AI_WORKER_SRC = `
+const DIRS = ["left","right","up","down"];
+var ENG = (function(){
+  var P = {
+    empty: 270, merges: 700, monoW: 47, monoP: 4, sumW: 11, sumP: 3.5, lost: 200000,
+    deadPerim: 0, deadComp: 0, deadClus: 0, deadCorner: 0,
+    c11: 0, d11: 0, deadVal: 0, cprob: 0.0001
+  };
+  var LEFT = new Uint16Array(65536), RIGHT = new Uint16Array(65536);
+  var HROW = new Float64Array(65536), MASK11 = new Uint8Array(16 * 16 * 16 * 16);
+  var DEADPEN = new Float64Array(65536);
+  var POP = new Uint8Array(65536);
+  var P1 = 0.9, P2 = 0.1;
+
+  function rev(idx){ return ((idx & 15) << 12) | (((idx >> 4) & 15) << 8) | (((idx >> 8) & 15) << 4) | (idx >> 12); }
+
+  function buildMoveTables(){
+    for(var idx = 0; idx < 65536; idx++){
+      var t = [], v;
+      for(var k = 0; k < 4; k++){ v = (idx >> (4 * k)) & 15; if(v) t.push(v); }
+      var out = [], i = 0;
+      while(i < t.length){
+        if(i + 1 < t.length && t[i] === t[i + 1] && t[i] < 11){ out.push(t[i] + 1); i += 2; }
+        else { out.push(t[i]); i++; }
+      }
+      while(out.length < 4) out.push(0);
+      LEFT[idx] = out[0] | (out[1] << 4) | (out[2] << 8) | (out[3] << 12);
+    }
+    for(idx = 0; idx < 65536; idx++) RIGHT[idx] = rev(LEFT[rev(idx)]);
+    for(idx = 0; idx < 65536; idx++){ var p = 0, x = idx; while(x){ p += x & 1; x >>= 1; } POP[idx] = p; }
+  }
+
+  function buildHeuristic(){
+    for(var idx = 0; idx < 65536; idx++){
+      var r = [idx & 15, (idx >> 4) & 15, (idx >> 8) & 15, (idx >> 12) & 15];
+      var mk = 0; for(var q = 0; q < 4; q++) if(r[q] === 11) mk |= (1 << q);
+      MASK11[idx] = mk;
+      var sum = 0, empty = 0, merges = 0, prev = 0, counter = 0;
+      for(var i = 0; i < 4; i++){
+        var rank = r[i];
+        sum += Math.pow(rank, P.sumP);
+        if(rank === 0){ empty++; }
+        else {
+          if(prev === rank){ if(rank < 11) counter++; }
+          else if(counter > 0){ merges += 1 + counter; counter = 0; }
+          prev = rank;
+        }
+      }
+      if(counter > 0) merges += 1 + counter;
+      var ml = 0, mr = 0;
+      for(i = 1; i < 4; i++){
+        if(r[i - 1] > r[i]) ml += Math.pow(r[i - 1], P.monoP) - Math.pow(r[i], P.monoP);
+        else mr += Math.pow(r[i], P.monoP) - Math.pow(r[i - 1], P.monoP);
+      }
+      HROW[idx] = P.lost + P.empty * empty + P.merges * merges - P.monoW * Math.min(ml, mr) - P.sumW * sum;
+    }
+  }
+
+  function buildDeadPenalty(){
+    var CORNERS = (1 << 0) | (1 << 3) | (1 << 12) | (1 << 15);
+    function comps(maskSet){
+      var seen = 0, n = 0;
+      for(var s = 0; s < 16; s++){
+        if(!((maskSet >> s) & 1) || ((seen >> s) & 1)) continue;
+        n++; var st = [s]; seen |= (1 << s);
+        while(st.length){
+          var c = st.pop(), r = (c / 4) | 0, col = c % 4, nb = [];
+          if(r > 0) nb.push(c - 4); if(r < 3) nb.push(c + 4); if(col > 0) nb.push(c - 1); if(col < 3) nb.push(c + 1);
+          for(var j = 0; j < nb.length; j++){ var d = nb[j]; if(((maskSet >> d) & 1) && !((seen >> d) & 1)){ seen |= (1 << d); st.push(d); } }
+        }
+      }
+      return n;
+    }
+    for(var m = 0; m < 65536; m++){
+      if(m === 0){ DEADPEN[m] = 0; continue; }
+      var perim = 0;
+      for(var c = 0; c < 16; c++){
+        if(!((m >> c) & 1)) continue;
+        var r = (c / 4) | 0, col = c % 4;
+        if(r > 0 && !((m >> (c - 4)) & 1)) perim++;
+        if(r < 3 && !((m >> (c + 4)) & 1)) perim++;
+        if(col > 0 && !((m >> (c - 1)) & 1)) perim++;
+        if(col < 3 && !((m >> (c + 1)) & 1)) perim++;
+      }
+      var free = (~m) & 0xFFFF;
+      var cf = free ? comps(free) : 1, cd = comps(m);
+      DEADPEN[m] = P.deadPerim * perim + P.deadComp * Math.max(0, cf - 1) + P.deadClus * (cd - 1) + ((m & CORNERS) ? 0 : P.deadCorner);
+    }
+  }
+
+  function move(b, dir, o){
+    var changed = false, i, c, idx, res;
+    if(dir === 0){
+      for(i = 0; i < 16; i += 4){
+        idx = b[i] | (b[i + 1] << 4) | (b[i + 2] << 8) | (b[i + 3] << 12); res = LEFT[idx]; if(res !== idx) changed = true;
+        o[i] = res & 15; o[i + 1] = (res >> 4) & 15; o[i + 2] = (res >> 8) & 15; o[i + 3] = res >> 12;
+      }
+    } else if(dir === 1){
+      for(i = 0; i < 16; i += 4){
+        idx = b[i] | (b[i + 1] << 4) | (b[i + 2] << 8) | (b[i + 3] << 12); res = RIGHT[idx]; if(res !== idx) changed = true;
+        o[i] = res & 15; o[i + 1] = (res >> 4) & 15; o[i + 2] = (res >> 8) & 15; o[i + 3] = res >> 12;
+      }
+    } else if(dir === 2){
+      for(c = 0; c < 4; c++){
+        idx = b[c] | (b[c + 4] << 4) | (b[c + 8] << 8) | (b[c + 12] << 12); res = LEFT[idx]; if(res !== idx) changed = true;
+        o[c] = res & 15; o[c + 4] = (res >> 4) & 15; o[c + 8] = (res >> 8) & 15; o[c + 12] = res >> 12;
+      }
+    } else {
+      for(c = 0; c < 4; c++){
+        idx = b[c] | (b[c + 4] << 4) | (b[c + 8] << 8) | (b[c + 12] << 12); res = RIGHT[idx]; if(res !== idx) changed = true;
+        o[c] = res & 15; o[c + 4] = (res >> 4) & 15; o[c + 8] = (res >> 8) & 15; o[c + 12] = res >> 12;
+      }
+    }
+    return changed;
+  }
+
+  function evalBoard(b){
+    var r0 = b[0] | (b[1] << 4) | (b[2] << 8) | (b[3] << 12),
+        r1 = b[4] | (b[5] << 4) | (b[6] << 8) | (b[7] << 12),
+        r2 = b[8] | (b[9] << 4) | (b[10] << 8) | (b[11] << 12),
+        r3 = b[12] | (b[13] << 4) | (b[14] << 8) | (b[15] << 12),
+        c0 = b[0] | (b[4] << 4) | (b[8] << 8) | (b[12] << 12),
+        c1 = b[1] | (b[5] << 4) | (b[9] << 8) | (b[13] << 12),
+        c2 = b[2] | (b[6] << 4) | (b[10] << 8) | (b[14] << 12),
+        c3 = b[3] | (b[7] << 4) | (b[11] << 8) | (b[15] << 12);
+    var s = HROW[r0] + HROW[r1] + HROW[r2] + HROW[r3] + HROW[c0] + HROW[c1] + HROW[c2] + HROW[c3];
+    var mask = MASK11[r0] | (MASK11[r1] << 4) | (MASK11[r2] << 8) | (MASK11[r3] << 12);
+    if(mask) s += P.c11 * POP[mask] - DEADPEN[mask];
+    return s;
+  }
+  function lostValue(b){
+    var n = 0; for(var i = 0; i < 16; i++) if(b[i] === 11) n++;
+    return P.deadVal + P.d11 * n;
+  }
+
+  var TT_BITS = 19, TT_SIZE = 1 << TT_BITS;
+  var ttLo = new Int32Array(TT_SIZE), ttHi = new Int32Array(TT_SIZE), ttVal = new Float64Array(TT_SIZE),
+      ttDepth = new Int8Array(TT_SIZE), ttStamp = new Uint32Array(TT_SIZE);
+  var stamp = 1;
+  var scratch = [], emps = [];
+  for(var dd = 0; dd < 24; dd++){ scratch.push(new Uint8Array(16)); emps.push(new Uint8Array(16)); }
+  var nodes = 0, deadline = 0, aborted = false, CPROB = 0.0001;
+
+  function chanceNode(b, depth, cprob){
+    if(depth <= 0 || cprob < CPROB) return evalBoard(b);
+    if((++nodes & 2047) === 0 && deadline && Date.now() > deadline) aborted = true;
+    if(aborted) return 0;
+    var lo = b[0] | (b[1] << 4) | (b[2] << 8) | (b[3] << 12) | (b[4] << 16) | (b[5] << 20) | (b[6] << 24) | (b[7] << 28);
+    var hi = b[8] | (b[9] << 4) | (b[10] << 8) | (b[11] << 12) | (b[12] << 16) | (b[13] << 20) | (b[14] << 24) | (b[15] << 28);
+    var h = (Math.imul(lo, 0x9E3779B1) ^ Math.imul(hi, 0x85EBCA6B)) >>> (32 - TT_BITS);
+    if(ttStamp[h] === stamp && ttLo[h] === lo && ttHi[h] === hi && ttDepth[h] >= depth) return ttVal[h];
+    var emp = emps[depth], n = 0, i;
+    for(i = 0; i < 16; i++) if(b[i] === 0) emp[n++] = i;
+    if(n === 0) return lostValue(b);
+    var cp = cprob / n, sum = 0, e;
+    for(e = 0; e < n; e++){
+      i = emp[e];
+      b[i] = 1; sum += P1 * moveNode(b, depth, cp * P1);
+      b[i] = 2; sum += P2 * moveNode(b, depth, cp * P2);
+      b[i] = 0;
+    }
+    var v = sum / n;
+    if(!aborted){ ttStamp[h] = stamp; ttLo[h] = lo; ttHi[h] = hi; ttDepth[h] = depth; ttVal[h] = v; }
+    return v;
+  }
+
+  function moveNode(b, depth, cprob){
+    var best = -Infinity, nb = scratch[depth], d, v;
+    for(d = 0; d < 4; d++){
+      if(move(b, d, nb)){ v = chanceNode(nb, depth - 1, cprob); if(v > best) best = v; }
+    }
+    return best === -Infinity ? lostValue(b) : best;
+  }
+
+  function choose(board16, opts){
+    opts = opts || {};
+    if(opts.p1 !== undefined){ P1 = opts.p1; P2 = 1 - P1; }
+    CPROB = opts.cprob || P.cprob;
+    var maxDepth = opts.maxDepth || 12, timeMs = opts.timeMs || 0;
+    var root = new Uint8Array(16); for(var i = 0; i < 16; i++) root[i] = board16[i] | 0;
+    stamp++; if(stamp > 4000000000) { stamp = 1; ttStamp.fill(0); }
+    nodes = 0; aborted = false; deadline = timeMs ? Date.now() + timeMs : 0;
+    function popCount(a){ var n = 0; for(var i = 0; i < 16; i++) if(a[i]) n++; return n; }
+    var after = [], valid = [];
+    for(var d = 0; d < 4; d++){ var nb = new Uint8Array(16); if(move(root, d, nb)){ after[d] = nb; valid.push(d); } else after[d] = null; }
+    if(!valid.length) return { dir: -1, depth: 0, values: [], nodes: 0 };
+    if(valid.length === 1) return { dir: valid[0], depth: 0, values: [], nodes: 0 };
+
+    var maxLvl = 0; for(var mi = 0; mi < 16; mi++) if(root[mi] > maxLvl) maxLvl = root[mi];
+    var MERGE_BONUS = 2500 + maxLvl * 300;
+    var rootPop = popCount(root), mergedNow = [];
+    for(var mk = 0; mk < valid.length; mk++){ var mdir = valid[mk]; mergedNow[mdir] = rootPop - popCount(after[mdir]); }
+
+    var bestDir = valid[0], bestVals = [], doneDepth = 0;
+    for(var D = 0; D <= maxDepth; D++){
+      var vals = [], bd = -1, bv = -Infinity;
+      for(var k = 0; k < valid.length; k++){
+        var dir = valid[k], copy = after[dir].slice();
+        var v = chanceNode(copy, D, 1);
+        if(aborted) break;
+        v += mergedNow[dir] * MERGE_BONUS;
+        vals[dir] = v; if(v > bv){ bv = v; bd = dir; }
+      }
+      if(aborted) break;
+      bestDir = bd; bestVals = vals; doneDepth = D;
+      if(!timeMs && D >= maxDepth) break;
+    }
+    return { dir: bestDir, depth: doneDepth, values: bestVals, nodes: nodes };
+  }
+
+  var DEFAULTS = {}; for(var k0 in P) DEFAULTS[k0] = P[k0];
+  function init(params){
+    for(var k1 in DEFAULTS) P[k1] = DEFAULTS[k1];
+    if(params) for(var k in params) P[k] = params[k];
+    buildMoveTables(); buildHeuristic(); buildDeadPenalty();
+  }
+  return { init: init, choose: choose, move: move };
+})();
+
+let ENG_TIME = 600, _engReady = false;
+const ENG_PARAMS = {"empty":557.1044228736097,"merges":401.7038675898317,"monoW":31.8806315950676,"monoP":3.306857574916566,"sumW":11,"sumP":3.3393767217454866,"c11":33271,"deadPerim":6000,"deadCorner":30000,"deadComp":20000};
+function engAnalyze(flat){
+  if(!_engReady){ ENG.init(ENG_PARAMS); _engReady = true; }
+  const r = ENG.choose(flat, { timeMs: ENG_TIME, maxDepth: 10, p1: 0.9 });
+  if(r.dir < 0) return { bestMove: 'none', depth: 0, ranked: [] };
+  const ranked = [];
+  for(let d=0; d<4; d++) if(r.values[d] !== undefined) ranked.push({ dir: DIRS[d], score: Math.round(r.values[d]) });
+  ranked.sort((a,b)=>b.score-a.score);
+  return { bestMove: DIRS[r.dir], depth: r.depth, ranked: ranked };
+}
+
+self.onmessage = function(e){
+  const msg = e.data || {};
+  if (msg.cmd === 'move') {
+    let dir = null, err = null, ranked = [], depth = 0;
+    try {
+      const flat = new Array(16);
+      for (let r=0;r<4;r++) for (let c=0;c<4;c++) flat[r*4+c] = (msg.board[r][c] || 0);
+      const result = engAnalyze(flat);
+      dir = result.bestMove === 'none' ? null : result.bestMove;
+      ranked = result.ranked;
+      depth = result.depth;
+    } catch (ex) {
+      err = (ex && ex.message) ? ex.message : String(ex);
+    }
+    self.postMessage({ id: msg.id, dir, error: err, lastRankedMoves: ranked, lastSearchDepth: depth });
+  }
+};
+`;
+
+let aiWorker = null;
+let _aiReqId = 0;
+let _aiPending = null;
+let lastSearchDepth = 0;
+let lastRankedMoves = [];
+
+function initAIWorker(){
+  try {
+    const blob = new Blob([AI_WORKER_SRC], { type: 'application/javascript' });
+    aiWorker = new Worker(URL.createObjectURL(blob));
+    aiWorker.onmessage = function(e){
+      const msg = e.data || {};
+      if (!_aiPending || msg.id !== _aiPending.id) return;
+      lastRankedMoves = msg.lastRankedMoves || [];
+      lastSearchDepth = msg.lastSearchDepth || 0;
+      const { resolve, reject } = _aiPending;
+      _aiPending = null;
+      if (msg.error) reject(new Error(msg.error));
+      else resolve(msg.dir);
+    };
+    aiWorker.onerror = function(err){
+      if (_aiPending) {
+        const { reject } = _aiPending;
+        _aiPending = null;
+        reject(err);
+      }
+    };
+  } catch (e) {
+    console.warn('AI worker init failed:', e);
+    aiWorker = null;
+  }
+}
+
+function aiWorkerMove(boardState){
+  return new Promise((resolve, reject) => {
+    if (!aiWorker) { reject(new Error('AI worker not available')); return; }
+    const id = ++_aiReqId;
+    _aiPending = { resolve, reject, id };
+    aiWorker.postMessage({ cmd: 'move', id, board: boardState });
+  });
+}
+
+/* DOM ELEMENTS */
+const $=id=>document.getElementById(id);
+const gridElement=$("grid");
+const resultText=$("result-text");
+const explanationEl=$("explanation");
+const lockedBox=$("locked-box");
+const suggestedCellSpan=$("suggested-cell");
+const toast=$("toast");
+const btnBest=$("btn-best");
+const btnUndo=$("btn-undo");
+const btnClear=$("btn-clear");
+const btnSmartSwap=$("btn-smart-swap");
+const btnSmartUpgrade=$("btn-smart-upgrade");
+const btnSuggestDelete=$("btn-suggest-delete");
+const btnDeleteSuggested=$("btn-delete-suggested");
+const btnUp=$("btn-up");
+const btnDown=$("btn-down");
+const btnLeft=$("btn-left");
+const btnRight=$("btn-right");
+const _a10=$("lock-overlay");
+const _a2=$("lock-theme-toggle");
+const _a13=$("btn-verify");
+const _a12=$("lock-error");
+const _a11=$("lock-status");
+const _a4=$("user-number");
+const _a1=$("user-password");
+const pickerOverlay=$("picker-overlay");
+const pickerGrid=$("picker-grid");
+const pickerCancel=$("picker-cancel");
+const deleteOverlay=$("delete-overlay");
+const deleteQuestion=$("delete-question");
+const deleteYes=$("delete-yes");
+const deleteNo=$("delete-no");
+const maxOverlay=$("max-overlay");
+const maxClose=$("max-close");
+
+function showToast(msg){ toast.textContent=msg; toast.classList.add("show"); clearTimeout(showToast.timer); showToast.timer=setTimeout(()=>toast.classList.remove("show"),1800); }
+function setResult(main,expl=""){ resultText.textContent=main; explanationEl.textContent=expl; }
+function setBusy(v){ isBusy=v; [btnBest,btnSmartSwap,btnSmartUpgrade,btnSuggestDelete,btnClear,btnUp,btnDown,btnLeft,btnRight].forEach(b=>b.disabled=v); updateUndoButton(); }
+
+/* GRID & STORAGE UI */
+function saveGrid(){ try{ localStorage.setItem("saved_grid_exact_v1", JSON.stringify({board, updatedAt:Date.now()})); }catch(e){} }
+function loadGrid(){ try{ const raw=localStorage.getItem("saved_grid_exact_v1"); if(raw){ const data=JSON.parse(raw); if(data && data.board) board=data.board; } }catch(e){ board=createEmptyGrid(); } }
+
+function createGridUI(){ 
+  gridElement.innerHTML=""; 
+  for(let r=0;r<G;r++){ 
+    for(let c=0;c<G;c++){ 
+      const cell=document.createElement("div"); 
+      cell.className="cell num-0"; 
+      cell.dataset.row=r; 
+      cell.dataset.col=c; 
+      const animal=document.createElement("img"); 
+      animal.className="animal-icon"; 
+      animal.style.display="none"; 
+      animal.alt=""; 
+      animal.draggable=false; 
+
+      cell.addEventListener("click",()=>{ 
+        const row=parseInt(cell.dataset.row); 
+        const col=parseInt(cell.dataset.col); 
+        if(!board[row][col]){ openPicker(row,col); } 
+        else { openDeleteConfirm(row,col); } 
+      }); 
+      cell.appendChild(animal); 
+      gridElement.appendChild(cell); 
+    } 
+  } 
+}
+
+function updateCellDisplay(cell,value){ 
+  for(let i=0;i<=MAX_LEVEL;i++) cell.classList.remove("num-"+i); 
+  cell.classList.add("num-"+(value||0)); 
+  const animal=cell.querySelector(".animal-icon"); 
+  if(value>0){ 
+    animal.src=animalImages[value]||""; 
+    animal.alt=value; 
+    animal.style.display="block"; 
+  } else { 
+    animal.src=""; 
+    animal.alt=""; 
+    animal.style.display="none"; 
+  } 
+}
+
+function writeGridToUI(animate=false, direction=null, mergedFlags=null, highlights=[]){ 
+  for(let r=0;r<G;r++){ 
+    for(let c=0;c<G;c++){ 
+      const cell=gridElement.children[r*G+c]; 
+      const val = board[r][c];
+      updateCellDisplay(cell, val); 
+      cell.classList.remove("move-left","move-right","move-up","move-down","merged","spawn","ai-highlight"); 
+      if(animate && direction) cell.classList.add("move-"+direction);
+      if(mergedFlags && mergedFlags[r][c]) cell.classList.add("merged");
+    } 
+  } 
+  if(highlights&&highlights.length){ 
+    highlights.forEach(([r,c])=>{ 
+      if(gridElement.children[r*G+c]) gridElement.children[r*G+c].classList.add("ai-highlight"); 
+    }); 
+  } 
+  saveGrid(); 
+  checkMaxLevel(); 
+}
+
+/* PICKER & DELETE POPUPS */
+function buildAnimalPicker(){
+  pickerGrid.innerHTML="";
+  const names={1:"جمل",2:"نسر",3:"نمر",4:"أسد",5:"ذئب",6:"فرس البحر",7:"حصان",8:"دب",9:"فيل",10:"ثور",11:"روح"};
+  const backgrounds=["#4caf50","#00bcd4","#2196f3","#3f51b5","#9c27b0","#673ab7","#ff9800","#ff5722","#f44336","#e91e63","#ffc107"];
+  for(let level=1;level<=MAX_LEVEL;level++){
+    const btn=document.createElement("button");
+    btn.className="picker-btn";
+    btn.dataset.pick=String(level);
+    btn.title=names[level]||String(level);
+    btn.style.background=`radial-gradient(circle at 38% 38%, rgba(255,255,255,.35), ${backgrounds[level-1]})`;
+    const img=document.createElement("img");
+    img.src=animalImages[level]||""; img.alt=names[level]||String(level);
+    const num=document.createElement("span"); num.className="lbnum"; num.textContent=String(level);
+    btn.append(img,num); pickerGrid.appendChild(btn);
+  }
+}
+
+function openPicker(row,col){ selectedCellForPick={row,col}; pickerOverlay.classList.add("show"); }
+function closePicker(){ pickerOverlay.classList.remove("show"); selectedCellForPick=null; }
+
+pickerGrid.addEventListener("click",e=>{
+  const btn=e.target.closest(".picker-btn"); if(!btn||!selectedCellForPick)return;
+  const level=parseInt(btn.dataset.pick,10); const {row,col}=selectedCellForPick;
+  if(board[row][col]) { closePicker(); return; }
+  pushHistory();
+  board[row][col]=level;
+  writeGridToUI();
+  clearMessages(); closePicker();
+  showToast(`✅ ${currentLang==='ar'?'تم وضع':'Placed'} ${level}`);
+  if(level===MAX_LEVEL) showMaxLevel();
+});
+pickerCancel.addEventListener("click",closePicker);
+
+function openDeleteConfirm(row,col){
+  selectedCellForPick={row,col};
+  deleteQuestion.textContent=t("delete_question");
+  deleteYes.textContent=t("delete_yes");
+  deleteNo.textContent=t("delete_no");
+  deleteOverlay.classList.add("show");
+}
+function closeDeleteConfirm(){ deleteOverlay.classList.remove("show"); selectedCellForPick=null; }
+deleteYes.addEventListener("click",()=>{
+  if(!selectedCellForPick){ closeDeleteConfirm(); return; }
+  const {row,col}=selectedCellForPick;
+  pushHistory(); 
+  board[row][col]=null;
+  writeGridToUI();
+  clearMessages(); closeDeleteConfirm();
+  showToast(`🗑️ ${t("delete_done")}`);
+});
+deleteNo.addEventListener("click",closeDeleteConfirm);
+
+/* MAX LEVEL */
+function showMaxLevel(){ maxOverlay.classList.add("show"); }
+function checkMaxLevel(){ if(board.flat().some(v=>v===MAX_LEVEL)) showMaxLevel(); }
+maxClose.addEventListener("click",()=>maxOverlay.classList.remove("show"));
+
+/* HISTORY & UNDO */
+function clearMessages(){ lockedBox.style.display="none"; suggestedDeletion=null; setResult(t('default_result'),""); }
+function pushHistory(){ historyStack.push(cloneGrid(board)); if(historyStack.length>MAX_HISTORY) historyStack.shift(); updateUndoButton(); }
+function updateUndoButton(){ btnUndo.disabled=isBusy||historyStack.length===0; btnUndo.style.opacity=btnUndo.disabled?".45":"1"; }
+function undo(){ 
+  if(isBusy)return; 
+  if(historyStack.length===0){ setResult(t('no_undo')); return; } 
+  board=historyStack.pop(); 
+  writeGridToUI(); 
+  clearArrowHighlight(); 
+  lockedBox.style.display="none"; 
+  suggestedDeletion=null; 
+  setResult(t('undo_done')); 
+  updateUndoButton(); 
+}
+
+/* CORE GAMEPLAY & MOVES */
+function doMove(direction){
+  if(isBusy) return;
+  if(!canMove(board)){ checkLockAndSuggest(); return; }
+  const {b: nb, tot, mm} = shift(board, direction);
+  if(boardsEq(board, nb)){ setResult(t('move_impossible')); return; }
+  
+  pushHistory();
+  board = nb;
+  writeGridToUI(true, direction, mm);
+  clearArrowHighlight();
+  lockedBox.style.display='none'; 
+  suggestedDeletion=null;
+  setResult(t('move_done'));
+}
+
+function clearGrid(){ 
+  if(isBusy)return; 
+  if(!isGridEmpty(board)){ if(!confirm(t('clear_confirm')))return; } 
+  board=createEmptyGrid(); 
+  historyStack=[]; 
+  clearArrowHighlight(); 
+  writeGridToUI(); 
+  clearMessages(); 
+  updateUndoButton(); 
+  showToast(t('cleared')); 
+}
+
+/* AI STEP & EXACT ENGINE INTEGRATION */
+function clearArrowHighlight(){ document.querySelectorAll('.arrow-btn').forEach(btn => btn.classList.remove('ai-selected')); }
+function highlightArrow(direction){ clearArrowHighlight(); const map = { left: btnLeft, right: btnRight, up: btnUp, down: btnDown }; const target = map[direction]; if(target) target.classList.add('ai-selected'); }
+
+async function showBestMove(){
+  if(isBusy) return;
+  if(isGridEmpty(board)){ setResult(t('grid_empty'),t('enter_first')); return; }
+  if(!canMove(board)){ checkLockAndSuggest(); return; }
+  
+  setBusy(true);
+  clearArrowHighlight();
+  resultText.innerHTML='<span class="loading"></span> ' + t('thinking');
+  explanationEl.textContent = 'المهندس · تحليل عبر الـ Worker';
+  
+  try {
+    const m = await aiWorkerMove(board);
+    if(!m){
+      setResult(t('no_moves'), 'لا توجد حركات متاحة');
+      return;
+    }
+    aiSuggestion = m;
+    const names = {up:'⬆️ أعلى', down:'⬇️ أسفل', left:'⬅️ يسار', right:'➡️ يمين'};
+    let note = 'المهندس · تحليل كامل (عمق ' + (lastSearchDepth || '—') + ')';
+    if(board.flat().some(v => v === 11)) note += ' · 🏆 عندك Lv11 — المحرك يحافظ على مساحة اللعب لبناء التالي';
+    
+    setResult(`🤖 ${t('best_move')}: ${names[m]}`, note);
+    showToast(`🤖 ${names[m]}`);
+    highlightArrow(m);
+  } catch(err) {
+    console.warn("AI Step failed:", err);
+    setResult('تعذّر التحليل', 'حدث خطأ في محرك الـ AI');
+  } finally {
+    setBusy(false);
+  }
+}
+
+/* SMART UTILITIES (SWAP, UPGRADE, DELETE) */
+function heur(b){
+  let empty=0, pairs=0, smooth=0, max=0, mono=0, mob=0;
+  for(let r=0;r<G;r++) for(let c=0;c<G;c++){
+    const v = b[r][c];
+    if(!v){ empty++; continue; }
+    if(v>max) max=v;
+    if(c<G-1 && b[r][c+1]){ const d=Math.abs(v-b[r][c+1]); smooth+=d; if(d===0 && v<11) pairs++; }
+    if(r<G-1 && b[r+1][c]){ const d=Math.abs(v-b[r+1][c]); smooth+=d; if(d===0 && v<11) pairs++; }
+  }
+  const lines = [];
+  for(let i=0;i<G;i++){
+    lines.push(b[i].map(x=>x||0));
+    lines.push(b.map(row=>row[i]||0));
+  }
+  for(const ln of lines){
+    let inc=0, dec=0;
+    for(let i=0;i<G-1;i++){ const d=ln[i+1]-ln[i]; if(d>0) inc+=d; else dec-=d; }
+    mono += Math.min(inc,dec);
+  }
+  const cm = [b[0][0],b[0][G-1],b[G-1][0],b[G-1][G-1]].includes(max) ? 1 : 0;
+  for(const d of DIRS) if(isValidMove(b,d)) mob++;
+  return empty*30 + pairs*18 + mob*22 + cm*40 - smooth*2.5 - mono*6 + (mob===0 ? -300 : 0);
+}
+
+function countPairs(b){
+  let p=0;
+  for(let r=0;r<G;r++) for(let c=0;c<G;c++){
+    const v=b[r][c]; if(!v||v>=11) continue;
+    if(c<G-1 && b[r][c+1]===v) p++;
+    if(r<G-1 && b[r+1][c]===v) p++;
+  }
+  return p;
+}
+
+function smartSwap(){
+  if(isBusy)return; if(isGridEmpty(board)){setResult(t('grid_empty'));return;}
+  setBusy(true);
+  try{
+    const cp = () => board.map(r=>r.slice());
+    const cells = [];
+    for(let r=0;r<G;r++) for(let c=0;c<G;c++) if(board[r][c]) cells.push([r,c]);
+    let bs=null;
+    for(let i=0;i<cells.length;i++) for(let j=i+1;j<cells.length;j++){
+      const [r1,c1]=cells[i], [r2,c2]=cells[j];
+      const a=board[r1][c1], d=board[r2][c2];
+      if(a===d) continue;
+      const b = cp(); b[r1][c1]=d; b[r2][c2]=a;
+      const s = heur(b);
+      if(!bs || s>bs.s) bs = {s, r:r1, c:c1, r2, c2, a, d};
+    }
+    if(bs){
+      pushHistory();
+      const a=board[bs.r][bs.c]; board[bs.r][bs.c]=board[bs.r2][bs.c2]; board[bs.r2][bs.c2]=a;
+      writeGridToUI(false,null,null,[[bs.r,bs.c],[bs.r2,bs.c2]]);
+      setResult(t('swap_done'), `بدّل الحيوان ${bs.a} مع الحيوان ${bs.d} لضبط الترتيب.`);
+      showToast(t('swap_done'));
+    } else setResult(t('no_swap'));
+  }finally{ setBusy(false); }
+}
+
+function smartUpgradeDeep(){
+  if(isBusy)return; if(isGridEmpty(board)){setResult(t('grid_empty'));return;}
+  setBusy(true);
+  try{
+    const cp = () => board.map(r=>r.slice());
+    let bu=null;
+    for(let r=0;r<G;r++) for(let c=0;c<G;c++){
+      const v = board[r][c];
+      if(v && v<10){
+        let b = cp(); b[r][c]=v+1;
+        let s = heur(b);
+        if(!bu || s>bu.s) bu = {s, r, c, v};
+      }
+    }
+    if(bu){
+      pushHistory();
+      board[bu.r][bu.c]=bu.v+1;
+      writeGridToUI(false,null,null,[[bu.r,bu.c]]);
+      setResult(t('upgrade_done'), `رقّي الحيوان ${bu.v} لمستوى ${bu.v+1}.`);
+      showToast(t('upgrade_done'));
+    } else setResult(t('no_upgrade'));
+  }finally{ setBusy(false); }
+}
+
+function checkLockAndSuggest(){
+  if(isBusy)return;
+  if(canMove(board)){ lockedBox.style.display='none'; suggestedDeletion=null; setResult(t('board_free'),''); return; }
+  let bd=null, cp = () => board.map(r=>r.slice());
+  for(let r=0;r<G;r++) for(let c=0;c<G;c++){
+    const v = board[r][c];
+    if(v && v<8){
+      let b = cp(); b[r][c]=null;
+      let s = heur(b);
+      if(!bd || s>bd.s) bd = {s, r, c, v};
+    }
+  }
+  if(bd){
+    suggestedDeletion=[bd.r,bd.c];
+    lockedBox.style.display='block';
+    suggestedCellSpan.textContent=`${bd.r+1},${bd.c+1} (${bd.v})`;
+    setResult(t('board_locked'),'احذف هذا العنصر لتفريغ مساحة.');
+    writeGridToUI(false,null,null,[[bd.r,bd.c]]);
+  }
+}
+
+function smartDelete(){
+  if(isBusy)return; if(isGridEmpty(board)){setResult(t('grid_empty'));return;}
+  setBusy(true);
+  try{
+    let bd=null, cp = () => board.map(r=>r.slice());
+    for(let r=0;r<G;r++) for(let c=0;c<G;c++){
+      const v = board[r][c];
+      if(v && v<8){
+        let b = cp(); b[r][c]=null;
+        let s = heur(b);
+        if(!bd || s>bd.s) bd = {s, r, c, v};
+      }
+    }
+    if(bd){
+      pushHistory();
+      board[bd.r][bd.c]=null;
+      lockedBox.style.display='none';
+      writeGridToUI(false,null,null,[[bd.r,bd.c]]);
+      setResult(t('delete_done'), `تم حذف الحيوان ${bd.v}.`);
+      showToast(t('delete_done'));
+    } else setResult(t('no_upgrade'));
+  }finally{ setBusy(false); }
+}
+
+/* FIREBASE AUTH & LOCK SYSTEM */
+function _a20(){ let _a22=localStorage.getItem("device_id"); if(!_a22){ const random=typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36); _a22="dev-"+random; localStorage.setItem("device_id",_a22); } return _a22; }
+const _a21=_a20();
+
+async function _a3(){ try{ const savedUid = localStorage.getItem("anon_uid"); if (savedUid) { const currentUser = _a16.currentUser; if (currentUser && currentUser.uid === savedUid) { return savedUid; } } const { user } = await _a16.signInAnonymously(); const uid = user.uid; localStorage.setItem("anon_uid", uid); return uid; } catch(e) { console.error("Auth failed:", e); return null; } }
+
+async function _a8(number, password){
+  try{
+    const uid=await _a3();
+    if(!uid) return {ok:false, error:"auth"};
+    const ref=_a17.ref("requests/"+uid);
+    if(localStorage.getItem("approved_uid")===uid) return {ok:true, uid, already:true};
+    const mkWrite=(st)=>ref.transaction(cur=>{
+      if(cur && (cur.status==="approved" || cur.status==="blocked")) return;
+      return { number:number, password:password, status:st, createdAt:firebase.database.ServerValue.TIMESTAMP, _a22:_a21 };
+    }, undefined, false);
+    const work=mkWrite("approved").catch(()=>mkWrite("pending"));
+    const timeout=new Promise(res=>setTimeout(()=>res("slow"), 12000));
+    const r=await Promise.race([work, timeout]);
+    if(r==="slow") return {ok:true, uid, slow:true};
+    return {ok:true, uid};
+  }catch(e){ console.error(e); return {ok:false, error:"write"}; }
+}
+
+function _blkLock(){ [_a4,_a1].forEach(el=>{ if(el){ el.disabled=true; } }); _a13.disabled=true; _a13.classList.remove("loading"); _a13.innerHTML = t('send_req') + ' <span class="spinner"></span>'; _a10.classList.remove("hidden"); _a11.classList.remove("show"); _a12.textContent=t('blocked'); _a12.classList.add("show"); }
+function _blkUnlock(){ if(localStorage.getItem("blocked_uid")===null) return; localStorage.removeItem("blocked_uid"); [_a4,_a1].forEach(el=>{ if(el){ el.disabled=false; } }); _a13.disabled=false; _a12.classList.remove("show"); }
+function _a0(uid){ const ref=_a17.ref("requests/"+uid); ref.off("value"); ref.on("value", async snapshot=>{ const data=snapshot.val(); const alreadyApproved=localStorage.getItem("approved_uid")===uid;
+  if(data&&data.status==="approved"){ _blkUnlock(); localStorage.setItem("approved_uid", uid); _a10.classList.add("hidden"); _a11.classList.remove("show"); showToast(t('approved')); return; }
+  if(data&&data.status==="blocked"){
+    localStorage.removeItem("approved_uid"); localStorage.setItem("blocked_uid", uid);
+    _blkLock();
+    return;
+  }
+  _blkUnlock();
+  if(data && data.status==="pending"){ localStorage.setItem("approved_uid", uid); _a10.classList.add("hidden"); _a11.classList.remove("show"); return; }
+  if(alreadyApproved){ return; }
+  if(!data){ ref.off("value"); localStorage.removeItem("anon_uid"); _a10.classList.remove("hidden"); _a11.classList.remove("show"); _a12.textContent=t('deleted'); _a12.classList.add("show"); _a13.disabled=false; _a13.innerHTML = t('send_req') + ' <span class="spinner"></span>'; return; }
+  if(data.status==="rejected"){ _a11.classList.remove("show"); _a12.textContent=t('rejected'); _a12.classList.add("show"); _a13.disabled=false; _a13.innerHTML = t('send_req') + ' <span class="spinner"></span>'; }
+ }, err=>{ console.error("_a0 failed:", err); _a11.classList.remove("show"); _a12.textContent="⚠️ Firebase: "+((err&&(err.code||err.message))||"read error"); _a12.classList.add("show"); }); }
+
+_a13.addEventListener("click", async ()=>{ if(localStorage.getItem("blocked_uid")){ _blkLock(); return; } const number=_a4.value.trim(); const password=_a1.value.trim(); _a12.classList.remove("show"); _a11.classList.remove("show"); if(!number||!password){ _a12.textContent=t('enter_both'); _a12.classList.add("show"); return; } _a13.disabled=true; _a13.classList.add("loading"); _a13.innerHTML = t('loading') + ' <span class="spinner"></span>'; const result=await _a8(number, password); if(result.ok){ localStorage.setItem("approved_uid", result.uid); _a11.classList.remove("show"); _a10.classList.add("hidden"); showToast(t('approved')); _a0(result.uid); } else { _a12.textContent= result.error==="auth" ? t('auth_fail') : t('write_fail'); _a12.classList.add("show"); _a13.disabled=false; _a13.classList.remove("loading"); _a13.innerHTML = t('send_req') + ' <span class="spinner"></span>'; } });
+
+const _a9=localStorage.getItem("approved_uid");
+const _a15=localStorage.getItem("anon_uid");
+const _a18=_a9||_a15;
+if(localStorage.getItem("blocked_uid")){ _blkLock(); }
+else if(_a9 && _a10){ _a10.classList.add("hidden"); }
+if(_a18){ _a0(_a18); }
+
+/* Theme toggle */
+const _a7="lock_theme";
+function _a6(theme){
+  if(!_a10) return;
+  _a10.classList.toggle("theme-dark", theme==="dark");
+  if(_a2) _a2.textContent = theme==="dark" ? "☀️" : "🌙";
+}
+let _a14="light";
+try{ _a14=localStorage.getItem(_a7)||"light"; }catch(e){}
+_a6(_a14);
+if(_a2){
+  _a2.addEventListener("click", ()=>{
+    _a14 = _a14==="dark" ? "light" : "dark";
+    _a6(_a14);
+    try{ localStorage.setItem(_a7, _a14); }catch(e){}
+  });
+}
+
+/* LISTENERS & INIT */
+let touchStartX=0,touchStartY=0,touchStartTime=0;
+gridElement.addEventListener('touchstart',e=>{ if(e.touches.length!==1)return; const q=e.touches[0]; touchStartX=q.clientX; touchStartY=q.clientY; touchStartTime=performance.now(); },{passive:true});
+gridElement.addEventListener('touchend',e=>{ if(e.changedTouches.length!==1)return; const q=e.changedTouches[0],dx=q.clientX-touchStartX,dy=q.clientY-touchStartY,dist=Math.sqrt(dx*dx+dy*dy),dur=performance.now()-touchStartTime; if(dist<35||dur>650)return; doMove(Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up')); },{passive:true});
+
+document.addEventListener('keydown',e=>{ 
+  const active=document.activeElement; 
+  if(active&&active.tagName==='INPUT')return; 
+  const map={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down'}; 
+  if(map[e.key]){ e.preventDefault(); doMove(map[e.key]); } 
+});
+
+btnBest.addEventListener('click',showBestMove);
+btnUndo.addEventListener('click',undo);
+btnClear.addEventListener('click',clearGrid);
+btnUp.addEventListener('click',()=>doMove('up'));
+btnDown.addEventListener('click',()=>doMove('down'));
+btnLeft.addEventListener('click',()=>doMove('left'));
+btnRight.addEventListener('click',()=>doMove('right'));
+btnSmartSwap.addEventListener('click',smartSwap);
+btnSmartUpgrade.addEventListener('click',smartUpgradeDeep);
+btnSuggestDelete.addEventListener('click',smartDelete);
+btnDeleteSuggested.addEventListener('click',()=>{ 
+  if(!suggestedDeletion)return; 
+  const [r,c]=suggestedDeletion; 
+  pushHistory(); 
+  board[r][c]=null; 
+  clearArrowHighlight(); 
+  writeGridToUI(false,null,null,[[r,c]]); 
+  lockedBox.style.display='none'; 
+  suggestedDeletion=null; 
+  setResult(t('delete_done')); 
+  showToast(t('delete_done')); 
+});
+
+buildAnimalPicker();
+applyLanguage(currentLang);
+createGridUI();
+loadGrid();
+writeGridToUI();
+updateUndoButton();
+initAIWorker();
+</script>
+<script>
+/* ===== ADMIN BRIDGE: إحصائيات اللاعب (stats/{uid}) + صندوق الرسائل =====
+   سكربت مستقل — مابيغيّرش أي كود موجود في اللعبة، بس بيراقب اللوحة ويبعت البيانات اللي لوحة الأدمن بتقراها. */
+(function(){
+"use strict";
+const DB = _a17, AUTH = _a16, TS = firebase.database.ServerValue.TIMESTAMP, INC = (n)=>firebase.database.ServerValue.increment(n);
+const device = (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || ('ontouchstart' in window && innerWidth < 900)) ? 'mobile' : 'desktop';
+const pad = n => String(n).padStart(2,'0');
+const dayKey = () => { const d = new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
+const flat = () => board.flat();
+const boardMax = () => flat().reduce((m,v)=>Math.max(m, v||0), 0);
+const count11 = () => flat().filter(v => v === 11).length;
+const isLockedNow = () => !isGridEmpty(board) && !canMove(board);
+
+let base = null, ref = null, started = false;
+let moves = 0, pendingInc = 0, localMax = 0, wasLocked = false;
+let prev11 = count11(), prevNonEmpty = !isGridEmpty(board), pushedFlag = false;
+let dirty = {}, flushTimer = null;
+const errQueue = [], errSeen = new Set(); let errCount = 0;
+
+/* ---------- كتابة مجمّعة ---------- */
+function put(k, v){ dirty[k] = v; }
+function flush(now){
+  if(!started) return;
+  if(flushTimer){ clearTimeout(flushTimer); flushTimer = null; }
+  if(!Object.keys(dirty).length && !pendingInc) return;
+  const upd = dirty; dirty = {};
+  if(pendingInc){ upd.totalMoves = INC(pendingInc); pendingInc = 0; }
+  ref.update(upd).catch(e => console.warn('stats write failed:', e && (e.code || e.message)));
+}
+function schedule(now){ if(now) flush(); else if(!flushTimer) flushTimer = setTimeout(flush, 1500); }
+function newKey(path){ return DB.ref(base + '/' + path).push().key; }
+
+/* ---------- مراقبة اللوحة ---------- */
+function onBoard(isMove){
+  const action = isMove || pushedFlag; pushedFlag = false;
+  const nonEmpty = !isGridEmpty(board);
+  const n11 = count11(), mx = boardMax(), locked = isLockedNow();
+  if(!started){ prev11 = n11; prevNonEmpty = nonEmpty; wasLocked = locked; return; }
+  let urgent = false;
+
+  if(isMove){ moves++; pendingInc++; put('moves', moves); }
+  if(!nonEmpty && prevNonEmpty && !action){ moves = 0; put('moves', 0); }   // لوحة جديدة (مسح)
+
+  if(mx > localMax){ localMax = mx; put('maxLevel', mx); }
+
+  if(action && n11 > prev11){
+    for(let i = 0; i < n11 - prev11; i++){
+      const id = newKey('level11Log');
+      put('level11Log/' + id, TS);
+      put('level11Moves/' + id, { moves });
+    }
+    put('level11Count', INC(n11 - prev11));
+    put('lastReachedAt', TS);
+    urgent = true;
+  }
+
+  if(locked && !wasLocked){
+    const id = newKey('lockLog');
+    put('lockLog/' + id, { at: TS, moves, maxLevel: mx });
+    put('locked', true); put('lockedAt', TS); put('lockCount', INC(1));
+    moves = 0; put('moves', 0);   // بداية محاولة جديدة بعد القفل
+    // نبعت الحركات الأخيرة قبل التصفير: lockLog فيه العدد الصحيح
+    urgent = true;
+  } else if(!locked && wasLocked){
+    put('locked', false);
+  }
+
+  prev11 = n11; prevNonEmpty = nonEmpty; wasLocked = locked;
+  schedule(urgent);
+}
+
+/* لف الدوال اللي اللعبة بتناديها بالاسم (من غير تعديل الأصل) */
+const _write = window.writeGridToUI;
+window.writeGridToUI = function(animate){ const r = _write.apply(this, arguments); try{ onBoard(animate === true); }catch(e){ console.warn(e); } return r; };
+const _push = window.pushHistory;
+window.pushHistory = function(){ pushedFlag = true; return _push.apply(this, arguments); };
+
+/* ضغطة "أفضل حركة" (listener إضافي في مرحلة الـ capture عشان نقرأ isBusy قبل ما اللعبة تغيّرها) */
+btnBest.addEventListener('click', () => {
+  if(!started || isBusy || isGridEmpty(board) || !canMove(board)) return;
+  put('aiUse/standard', INC(1)); put('aiMode', 'standard'); put('aiLastAt', TS); schedule();
+}, true);
+
+/* ---------- الأخطاء ---------- */
+function logErr(msg, src){
+  msg = String(msg || 'unknown').slice(0, 300);
+  if(errSeen.has(msg) || errCount >= 15) return;
+  errSeen.add(msg); errCount++;
+  const e = { msg, src: String(src || '').slice(0, 200), at: TS, device, lang: currentLang };
+  if(!started){ errQueue.push(e); return; }
+  ref.child('errors').push(e).catch(()=>{});
+}
+window.addEventListener('error', ev => logErr(ev.message, (ev.filename || '').split('/').pop() + ':' + (ev.lineno || '')));
+window.addEventListener('unhandledrejection', ev => logErr((ev.reason && (ev.reason.message || ev.reason)) || 'unhandled rejection', 'promise'));
+
+/* ---------- صندوق الرسائل ---------- */
+const ibBtn = document.getElementById('inbox-btn'), ibDot = document.getElementById('inbox-dot'),
+      ibOv = document.getElementById('inbox-overlay'), ibList = document.getElementById('inbox-list'),
+      ibTitle = document.getElementById('inbox-title'), ibClose = document.getElementById('inbox-close');
+let inbox = [], firstInbox = true;
+const ibText = () => currentLang === 'ar'
+  ? { title: '📬 الرسائل', empty: 'مفيش رسائل', fresh: '📬 وصلتك رسالة جديدة', loc: 'ar-EG' }
+  : { title: '📬 Messages', empty: 'No messages', fresh: '📬 You have a new message', loc: 'en-GB' };
+
+function renderInbox(){
+  const L = ibText(); ibTitle.textContent = L.title; ibList.textContent = '';
+  if(!inbox.length){ const d = document.createElement('div'); d.className = 'inbox-empty'; d.textContent = L.empty; ibList.appendChild(d); return; }
+  inbox.forEach(m => {
+    const box = document.createElement('div'); box.className = 'inbox-msg' + (m.read ? '' : ' unread');
+    if(m.title){ const t = document.createElement('div'); t.className = 'mt'; t.textContent = m.title; box.appendChild(t); }
+    box.appendChild(document.createTextNode(m.text || ''));
+    if(m.at){ const d = document.createElement('div'); d.className = 'md'; d.textContent = new Date(m.at).toLocaleString(L.loc); box.appendChild(d); }
+    ibList.appendChild(box);
+  });
+}
+function updateDot(){
+  const n = inbox.filter(m => !m.read).length;
+  ibDot.textContent = n > 9 ? '9+' : String(n); ibDot.style.display = n ? 'flex' : 'none';
+}
+function openInbox(){
+  renderInbox(); ibOv.classList.add('show');
+  const unread = inbox.filter(m => !m.read);
+  if(started && unread.length){
+    const upd = {}; unread.forEach(m => { upd[m.id + '/read'] = true; });
+    ref.child('inbox').update(upd).catch(e => console.warn('mark read failed:', e && (e.code || e.message)));
+  }
+}
+ibBtn.addEventListener('click', openInbox);
+ibClose.addEventListener('click', () => ibOv.classList.remove('show'));
+ibOv.addEventListener('click', e => { if(e.target === ibOv) ibOv.classList.remove('show'); });
+
+/* ---------- التشغيل بعد الموافقة ---------- */
+async function start(uid){
+  base = 'stats/' + uid; ref = DB.ref(base);
+  try{
+    const snap = await ref.once('value'); const s = snap.val() || {};
+    moves = Number(s.moves) || 0; localMax = Number(s.maxLevel) || 0;
+  }catch(e){ console.warn('stats read failed:', e && (e.code || e.message)); }
+  started = true;
+
+  put('sessions', INC(1)); put('device', device); put('lang', currentLang);
+  put('days/' + dayKey(), true); put('online', true); put('lastSeen', TS);
+  put('locked', isLockedNow()); wasLocked = isLockedNow();
+  if(boardMax() > localMax){ localMax = boardMax(); put('maxLevel', localMax); }
+  put('moves', moves);
+  errQueue.splice(0).forEach(e => ref.child('errors').push(e).catch(()=>{}));
+  flush();
+
+  DB.ref('.info/connected').on('value', s => {
+    if(s.val() === true){ ref.child('online').onDisconnect().set(false); ref.child('lastSeen').onDisconnect().set(TS); put('online', true); put('lastSeen', TS); schedule(true); }
+  });
+  setInterval(() => { put('lastSeen', TS); put('online', !document.hidden); put('lang', currentLang); put('days/' + dayKey(), true); schedule(true); }, 45000);
+  document.addEventListener('visibilitychange', () => { put('online', !document.hidden); put('lastSeen', TS); schedule(true); });
+
+  ref.child('maxLevel').on('value', s => { localMax = Number(s.val()) || 0; });   // لو الأدمن صفّر أقصى مستوى
+  ref.child('inbox').on('value', s => {
+    const v = s.val() || {};
+    inbox = Object.keys(v).map(id => ({ id, ...v[id] })).sort((a,b) => (b.at||0) - (a.at||0));
+    ibBtn.style.display = 'inline-block'; updateDot();
+    if(!firstInbox && inbox.some(m => !m.read) && !ibOv.classList.contains('show')) showToast(ibText().fresh);
+    firstInbox = false;
+    if(ibOv.classList.contains('show')) renderInbox();
+  }, err => console.warn('inbox read failed:', err && (err.code || err.message)));
+}
+
+/* نبدأ أول ما اللاعب يتوافق عليه وتتأكد هويته (من غير ما نعدّل منطق الدخول الأصلي) */
+const waiter = setInterval(() => {
+  const u = AUTH.currentUser;
+  if(u && localStorage.getItem('approved_uid') === u.uid && !localStorage.getItem('blocked_uid')){ clearInterval(waiter); start(u.uid); }
+}, 1500);
+})();
+</script>
+</body>
+</html>
