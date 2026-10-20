@@ -1509,7 +1509,7 @@ const dayKey = () => { const d = new Date(); return d.getFullYear()+'-'+pad(d.ge
 const flat = () => board.flat();
 const boardMax = () => flat().reduce((m,v)=>Math.max(m, v||0), 0);
 const count11 = () => flat().filter(v => v === 11).length;
-const isLockedNow = () => !isGridEmpty(board) && !canMove(board);
+const isLockedNow = () => { const b = board.map(r => r.map(v => v === 11 ? null : v)); return !isGridEmpty(b) && !canMove(b); };
 
 let base = null, ref = null, started = false;
 let moves = 0, pendingInc = 0, localMax = 0, wasLocked = false;
@@ -1535,6 +1535,9 @@ function onBoard(isMove){
   const action = isMove || pushedFlag; pushedFlag = false;
   const nonEmpty = !isGridEmpty(board);
   const n11 = count11(), mx = boardMax(), locked = isLockedNow();
+  const newEleven = action && n11 > prev11;
+  if(n11) scheduleVanish();            // مستوى 11 يختفي تلقائي
+  if(newEleven) askRating();           // شاشة التقييم أول ما يتكوّن 11
   if(!started){ prev11 = n11; prevNonEmpty = nonEmpty; wasLocked = locked; return; }
   let urgent = false;
 
@@ -1593,48 +1596,300 @@ function logErr(msg, src){
 window.addEventListener('error', ev => logErr(ev.message, (ev.filename || '').split('/').pop() + ':' + (ev.lineno || '')));
 window.addEventListener('unhandledrejection', ev => logErr((ev.reason && (ev.reason.message || ev.reason)) || 'unhandled rejection', 'promise'));
 
-/* ---------- صندوق الرسائل ---------- */
+/* ---------- اختفاء مستوى 11 تلقائي ---------- */
+let vanishT = null, myUid = null;
+function scheduleVanish(){
+  if(vanishT) return;
+  vanishT = setTimeout(() => {
+    vanishT = null;
+    if(!count11()) return;
+    for(let r = 0; r < board.length; r++) for(let c = 0; c < board[r].length; c++) if(board[r][c] === 11) board[r][c] = null;
+    window.writeGridToUI();
+  }, 800);
+}
+{ const mo = document.getElementById('max-overlay'); if(count11()){ if(mo) mo.classList.remove('show'); scheduleVanish(); } }
+
+/* ---------- شاشة التقييم (5 نجوم + تعليق) ---------- */
+const _showMax = window.showMaxLevel;
+window.showMaxLevel = function(){ /* بدلناها بشاشة التقييم — بتتنادى من askRating */ };
+const ratedKey = () => 'rated_' + myUid;
+const isRated = () => { try{ return localStorage.getItem(ratedKey()) === '1'; }catch(e){ return false; } };
+const markRated = () => { try{ localStorage.setItem(ratedKey(), '1'); }catch(e){} };
+const RV = {
+  ar: { title:'🎉 تهانينا! وصلت للمستوى الأقصى', sub:'قيّم تجربتك معانا', ph:'اكتب تعليقك (اختياري)', send:'إرسال التقييم', skip:'مش دلوقتي', need:'اختار عدد النجوم الأول', thanks:'🙏 شكرًا على تقييمك!', fail:'تعذّر الإرسال، جرّب تاني' },
+  en: { title:'🎉 Congratulations! You reached the max level', sub:'Rate your experience', ph:'Write a comment (optional)', send:'Submit rating', skip:'Not now', need:'Please choose a star rating first', thanks:'🙏 Thanks for your rating!', fail:'Could not send, please try again' }
+};
+const rvT = () => RV[currentLang] || RV.en;
+let rvEl = null, rvStars = 0;
+function buildRating(){
+  const st = document.createElement('style');
+  st.textContent = '.rv-stars{display:flex;gap:6px;justify-content:center;direction:ltr;margin:6px 0 14px}.rv-star{background:none;border:0;font-size:2.4rem;line-height:1;cursor:pointer;color:#555;transition:transform .12s}.rv-star.on{color:#ffd166;text-shadow:0 0 12px rgba(255,209,102,.6)}.rv-star:active{transform:scale(1.2)}.rv-text{width:100%;min-height:84px;resize:vertical;border-radius:14px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;padding:10px 12px;font:inherit;font-size:.95rem;margin-bottom:10px;box-sizing:border-box}.rv-err{color:#ef476f;font-size:.85rem;min-height:1.3em;margin-bottom:8px}.rv-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}.rv-skip{background:rgba(255,255,255,.08);color:#ddd;border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:11px 20px;font-weight:700;cursor:pointer}.max-box .rv-sub{font-size:1.05rem;margin-bottom:6px}';
+  document.head.appendChild(st);
+  rvEl = document.createElement('div'); rvEl.className = 'max-overlay'; rvEl.id = 'rv-overlay';
+  rvEl.innerHTML = '<div class="max-box"><div class="max-icon">🏆</div><h2 id="rv-title"></h2><p class="rv-sub" id="rv-sub"></p><div class="rv-stars" id="rv-stars"></div><textarea class="rv-text" id="rv-text" maxlength="500"></textarea><div class="rv-err" id="rv-err"></div><div class="rv-actions"><button class="max-close" id="rv-send"></button><button class="rv-skip" id="rv-skip"></button></div></div>';
+  document.body.appendChild(rvEl);
+  const box = rvEl.querySelector('#rv-stars');
+  for(let i = 1; i <= 5; i++){ const b = document.createElement('button'); b.type = 'button'; b.className = 'rv-star'; b.textContent = '★'; b.dataset.n = i; box.appendChild(b); }
+  box.addEventListener('click', e => { const b = e.target.closest('.rv-star'); if(!b) return; rvStars = +b.dataset.n; paintStars(); rvEl.querySelector('#rv-err').textContent = ''; });
+  rvEl.querySelector('#rv-skip').addEventListener('click', () => rvEl.classList.remove('show'));
+  rvEl.querySelector('#rv-send').addEventListener('click', submitRating);
+}
+function paintStars(){ rvEl.querySelectorAll('.rv-star').forEach(b => b.classList.toggle('on', +b.dataset.n <= rvStars)); }
+function askRating(){
+  if(!started || isRated()){ if(_showMax) _showMax(); return; }   // اتسأل قبل كده: شاشة التهنئة الأصلية بس
+  markRated(); put('ratingAskedAt', TS); schedule(true);            // مرة واحدة بس لكل حساب (حتى لو قفلها)
+  if(!rvEl) buildRating();
+  const T = rvT(); rvStars = 0; paintStars();
+  rvEl.querySelector('#rv-title').textContent = T.title; rvEl.querySelector('#rv-sub').textContent = T.sub;
+  rvEl.querySelector('#rv-text').placeholder = T.ph; rvEl.querySelector('#rv-text').value = '';
+  rvEl.querySelector('#rv-send').textContent = T.send; rvEl.querySelector('#rv-skip').textContent = T.skip;
+  rvEl.querySelector('#rv-err').textContent = ''; rvEl.querySelector('#rv-send').disabled = false;
+  rvEl.classList.add('show');
+}
+function submitRating(){
+  const T = rvT(), err = rvEl.querySelector('#rv-err'), btn = rvEl.querySelector('#rv-send');
+  if(!rvStars){ err.textContent = T.need; return; }
+  btn.disabled = true; err.textContent = '';
+  const rec = { stars: rvStars, comment: rvEl.querySelector('#rv-text').value.trim().slice(0, 500), at: TS, maxLevel: 11, device, lang: currentLang };
+  ref.child('reviews').push(rec).then(() => { markRated(); rvEl.classList.remove('show'); showToast(T.thanks); })
+    .catch(e => { console.warn('review write failed:', e && (e.code || e.message)); err.textContent = T.fail; btn.disabled = false; });
+}
+
+/* ---------- روابط قابلة للضغط داخل الرسائل ---------- */
+const URL_RE = /((?:https?:\/\/|(?:www\.)?(?:wa\.me|chat\.whatsapp\.com|whatsapp\.com)\/)[^\s<>"']+)/gi;
+function linkify(text){
+  const out = [];
+  String(text == null ? '' : text).split(URL_RE).forEach((part, i) => {
+    if(i % 2 === 0){ if(part) out.push({ t:'text', v:part }); return; }
+    const m = part.match(/[.,!?;:)\]}،؛؟]+$/); const tail = m ? m[0] : ''; const url = tail ? part.slice(0, -tail.length) : part;
+    out.push({ t:'link', v:url, href:/^https?:\/\//i.test(url) ? url : 'https://' + url });
+    if(tail) out.push({ t:'text', v:tail });
+  });
+  return out;
+}
+function appendLinked(box, text){
+  linkify(text).forEach(p => {
+    if(p.t === 'text'){ box.appendChild(document.createTextNode(p.v)); return; }
+    const a = document.createElement('a'); a.href = p.href; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = p.v;
+    a.style.cssText = 'color:var(--accent);text-decoration:underline;word-break:break-all';
+    box.appendChild(a);
+  });
+}
+
+/* ---------- صندوق الرسائل + الردود (كل رسالة مترقّمة وليها صفحة خاصة) ---------- */
 const ibBtn = document.getElementById('inbox-btn'), ibDot = document.getElementById('inbox-dot'),
       ibOv = document.getElementById('inbox-overlay'), ibList = document.getElementById('inbox-list'),
       ibTitle = document.getElementById('inbox-title'), ibClose = document.getElementById('inbox-close');
-let inbox = [], firstInbox = true;
-const ibText = () => currentLang === 'ar'
-  ? { title: '📬 الرسائل', empty: 'مفيش رسائل', fresh: '📬 وصلتك رسالة جديدة', loc: 'ar-EG' }
-  : { title: '📬 Messages', empty: 'No messages', fresh: '📬 You have a new message', loc: 'en-GB' };
+let inbox = [], replies = [], adminReps = [], contacts = [], firstInbox = true, ibView = null, ibTab = 'msgs', knownAdm = null;   // ibView = رقم الرسالة المفتوحة (null = القايمة)
+const IB = {
+  ar: { title:'📬 الرسائل', empty:'مفيش رسائل', fresh:'📬 وصلتك رسالة جديدة', loc:'ar-EG', no:'رسالة رقم', back:'← رجوع', yours:'ردودك', ph:'اكتب ردك هنا...', send:'إرسال الرد', sent:'✅ تم إرسال ردك', fail:'تعذّر الإرسال، جرّب تاني', needText:'اكتب الرد الأول', tap:'💬 اضغط للرد', cnt:'ردودك', tabMsgs:'📬 الرسائل', tabReps:'↩️ الردود', repTo:'↩️ رد على رسالة رقم', repYours:'ردك', repAdmin:'↩️ رد الإدارة', noReps:'مفيش ردود لسه', freshRep:'↩️ وصلك رد جديد', replyBtn:'↩️ رد', repDone:'تم الرد على رسالة رقم', cAdm:'الأدمن', menu:'☰ القائمة', menuTitle:'☰ القائمة', cTitle:'✉️ مراسلة الأدمن', cTab:'✉️ مراسلة الأدمن', cIntro:'محادثة مباشرة مع الأدمن — الرسايل بتفضل محفوظة هنا.', cPh:'اكتب رسالتك للأدمن...', cSend:'إرسال للأدمن', cSent:'✅ وصلت رسالتك للأدمن', cHist:'رسائلك للأدمن', cNone:'ابدأ المحادثة بإرسال رسالة 👋', cWait:'استنى ثواني قبل الرسالة الجاية', cReplyTo:'↩️ رد على رسالتك', cYours:'رسالتك', cAns:'↩️ رد الأدمن', cPending:'⏳ في انتظار الرد' },
+  en: { title:'📬 Messages', empty:'No messages', fresh:'📬 You have a new message', loc:'en-GB', no:'Message #', back:'← Back', yours:'Your replies', ph:'Write your reply...', send:'Send reply', sent:'✅ Reply sent', fail:'Could not send, please try again', needText:'Write a reply first', tap:'💬 Tap to reply', cnt:'Your replies', tabMsgs:'📬 Messages', tabReps:'↩️ Replies', repTo:'↩️ Reply to message #', repYours:'Your reply', repAdmin:'↩️ Admin reply', noReps:'No replies yet', freshRep:'↩️ You got a new reply', replyBtn:'↩️ Reply', repDone:'Replied to message #', cAdm:'Admin', menu:'☰ Menu', menuTitle:'☰ Menu', cTitle:'✉️ Contact admin', cTab:'✉️ Contact admin', cIntro:'Chat directly with the admin — messages stay saved here.', cPh:'Write your message to the admin...', cSend:'Send to admin', cSent:'✅ Message sent to admin', cHist:'Your messages to admin', cNone:'Start the chat by sending a message 👋', cWait:'Please wait a few seconds', cReplyTo:'↩️ Reply to your message', cYours:'Your message', cAns:'↩️ Admin reply', cPending:'⏳ Waiting for a reply' }
+};
+const ibText = () => currentLang === 'ar' ? IB.ar : IB.en;
+{ const st = document.createElement('style');
+  st.textContent = '.inbox-msg.ib-click{cursor:pointer}.ib-no{font-size:.74rem;font-weight:800;color:var(--accent);margin-bottom:4px}.ib-foot{font-size:.72rem;color:var(--muted);margin-top:6px;display:flex;justify-content:space-between;gap:8px}.ib-back{background:none;border:0;color:var(--accent);font-weight:800;font-size:.9rem;cursor:pointer;padding:2px 0 6px;text-align:start}.ib-sec{font-size:.8rem;font-weight:800;color:var(--muted);margin-top:4px}.ib-rep{background:rgba(6,214,160,.08);border:1px solid rgba(6,214,160,.35);border-radius:12px;padding:9px 12px;font-size:.88rem;line-height:1.6;white-space:pre-wrap;word-break:break-word}.ib-rep .md{font-size:.7rem;color:var(--muted);margin-top:4px}.ib-reps{display:flex;flex-direction:column;gap:8px}.ib-ta{width:100%;min-height:72px;resize:vertical;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:#fff;padding:10px 12px;font:inherit;font-size:.92rem;box-sizing:border-box}.ib-err{color:var(--danger);font-size:.8rem;min-height:1.1em}.ib-send{border:0;border-radius:12px;padding:10px 18px;background:linear-gradient(90deg,#ffd166,#ff9f1c);color:#17120a;font-weight:900;cursor:pointer;align-self:flex-start}.ib-send:disabled{opacity:.5}.ib-tabs{display:flex;gap:6px;margin-bottom:2px}.ib-tab{flex:1;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:12px;padding:8px 6px;font-weight:800;font-size:.85rem;cursor:pointer}.ib-tab.on{border-color:var(--accent);color:var(--accent)}.ib-tab .n{background:var(--danger);color:#fff;border-radius:9px;padding:0 6px;font-size:.7rem;margin-inline-start:4px}.ib-adm{background:rgba(255,209,102,.1);border-color:rgba(255,209,102,.45)}.ib-who{font-size:.72rem;font-weight:800;color:var(--accent);margin-bottom:3px}.ib-menu{background:none;border:0;color:var(--accent);font-weight:800;font-size:.9rem;cursor:pointer;padding:2px 0 6px;text-align:start}.ib-drawer-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3550;display:none}.ib-drawer-bg.show{display:block}.ib-drawer{position:fixed;top:0;bottom:0;left:0;width:min(80vw,310px);background:#14141f;border-inline-end:1px solid var(--border);z-index:3600;transform:translateX(-105%);transition:transform .25s ease;display:flex;flex-direction:column;padding:calc(18px + env(safe-area-inset-top)) 14px 18px;color:var(--text)}.ib-drawer.show{transform:translateX(0)}.ib-drawer h3{margin:0 0 14px;font-size:1.05rem}.ib-drawer .it{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:14px;padding:14px;font-weight:800;font-size:.95rem;cursor:pointer;margin-bottom:10px;text-align:start}.ib-drawer .it:active{border-color:var(--accent)}.ib-drawer .it .n{background:var(--danger);color:#fff;border-radius:10px;padding:1px 8px;font-size:.75rem}@keyframes ibPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,77,77,.65)}50%{box-shadow:0 0 14px 4px rgba(255,77,77,.65)}}.inbox-btn.alert{border-color:#ff4d4d;background:rgba(255,77,77,.22);animation:ibPulse 1.4s infinite}.ib-drawer .it.alert{border-color:#ff4d4d;background:rgba(255,77,77,.16);color:#fff;animation:ibPulse 1.4s infinite}.ib-menu.alert{color:#ff4d4d}.cb-wrap{display:flex;flex-direction:column;gap:6px;height:min(46vh,380px);overflow-y:auto;padding:4px 2px}.cb{max-width:82%;padding:8px 12px;border-radius:14px;font-size:.9rem;line-height:1.6;white-space:pre-wrap;word-break:break-word;background:rgba(6,214,160,.1);border:1px solid rgba(6,214,160,.35);margin-left:auto}.cb.adm{background:rgba(255,209,102,.1);border-color:rgba(255,209,102,.45);margin-left:0;margin-right:auto}.cb .md{font-size:.68rem;color:var(--muted);margin-top:3px}.cb-row{display:flex;gap:8px;align-items:flex-end;margin-top:2px}.cb-row .ib-ta{min-height:44px;height:44px;resize:none;flex:1}.cb-row .cb-send{align-self:auto;height:44px;padding:0 16px;font-size:1.1rem}.ib-mini{border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--accent);border-radius:10px;padding:2px 10px;font-weight:800;font-size:.75rem;cursor:pointer}.ib-quote{font-size:.78rem;color:var(--muted);border-inline-start:3px solid var(--border);padding-inline-start:8px;margin:4px 0}';
+  document.head.appendChild(st); }
 
-function renderInbox(){
-  const L = ibText(); ibTitle.textContent = L.title; ibList.textContent = '';
-  if(!inbox.length){ const d = document.createElement('div'); d.className = 'inbox-empty'; d.textContent = L.empty; ibList.appendChild(d); return; }
-  inbox.forEach(m => {
-    const box = document.createElement('div'); box.className = 'inbox-msg' + (m.read ? '' : ' unread');
-    if(m.title){ const t = document.createElement('div'); t.className = 'mt'; t.textContent = m.title; box.appendChild(t); }
-    box.appendChild(document.createTextNode(m.text || ''));
-    if(m.at){ const d = document.createElement('div'); d.className = 'md'; d.textContent = new Date(m.at).toLocaleString(L.loc); box.appendChild(d); }
+const repliesFor = no => replies.filter(r => Number(r.no) === Number(no)).sort((a,b) => (a.at||0) - (b.at||0));
+const mk = (tag, cls, txt) => { const e = document.createElement(tag); if(cls) e.className = cls; if(txt != null) e.textContent = txt; return e; };
+
+function renderInbox(){ if(ibView != null) renderThread(); else if(ibTab === 'contact') renderContact(); else renderList(); syncAdminRead(); }
+/* علّم ردود الإدارة "مقروءة" لما اللاعب يشوفها فعلًا (تبويب الردود أو صفحة الرسالة) */
+function syncAdminRead(){
+  if(!started || !ibOv.classList.contains('show')) return;
+  const seen = ibView != null ? unreadAdm().filter(a => a.kind !== 'contact' && Number(a.no) === Number(ibView)) : (ibTab === 'reps' ? unreadAdm().filter(a => a.kind !== 'contact') : (ibTab === 'contact' ? unreadAdm().filter(a => a.kind === 'contact') : []));
+  if(!seen.length) return;
+  const upd = {}; seen.forEach(a => { upd[a.id + '/read'] = true; a.read = true; });
+  ref.child('adminReplies').update(upd).catch(e => console.warn('mark reply read failed:', e && (e.code || e.message)));
+  updateDot();
+}
+
+const unreadAdm = () => adminReps.filter(a => !a.read);
+function menuBtn(){ const b = mk('button', 'ib-menu', ibText().menu); b.type = 'button'; b.dataset.act = 'menu'; return b; }
+function tabBar(){
+  const L = ibText(), bar = mk('div', 'ib-tabs'), n = unreadAdm().length;
+  const t1 = mk('button', 'ib-tab' + (ibTab === 'msgs' ? ' on' : ''), L.tabMsgs); t1.type = 'button'; t1.dataset.tab = 'msgs';
+  const t2 = mk('button', 'ib-tab' + (ibTab === 'reps' ? ' on' : ''), L.tabReps); t2.type = 'button'; t2.dataset.tab = 'reps';
+  if(n) t2.appendChild(mk('span', 'n', String(n)));
+  bar.appendChild(t1); bar.appendChild(t2); return bar;
+}
+function renderAdminList(){
+  const L = ibText(); ibList.appendChild(menuBtn());
+  const list = adminReps.filter(a => a.kind !== 'contact').sort((a,b) => (b.at||0) - (a.at||0));
+  if(!list.length){ ibList.appendChild(mk('div', 'inbox-empty', L.noReps)); return; }
+  list.forEach(a => {
+    const isC = a.kind === 'contact';
+    const canOpen = !isC && inbox.some(m => Number(m.no) === Number(a.no));
+    const box = mk('div', 'inbox-msg' + (a.read ? '' : ' unread') + (canOpen ? ' ib-click' : ''));
+    if(canOpen) box.dataset.no = a.no;
+    box.appendChild(mk('div', 'ib-no', '✅ ' + L.repDone + ' ' + a.no));
+    if(a.quote) box.appendChild(mk('div', 'ib-quote', L.repYours + ': ' + a.quote));
+    box.appendChild(mk('div', 'ib-who', L.repAdmin)); appendLinked(box, a.text || '');
+    box.appendChild(mk('div', 'ib-foot')).appendChild(mk('span', 'md', a.at ? new Date(a.at).toLocaleString(L.loc) : ''));
     ibList.appendChild(box);
   });
 }
-function updateDot(){
-  const n = inbox.filter(m => !m.read).length;
-  ibDot.textContent = n > 9 ? '9+' : String(n); ibDot.style.display = n ? 'flex' : 'none';
+function renderList(){
+  const L = ibText(); ibTitle.textContent = ibTab === 'reps' ? L.tabReps : L.title; ibList.textContent = '';
+  if(ibTab === 'reps'){ renderAdminList(); return; }
+  ibList.appendChild(menuBtn());
+  if(!inbox.length){ ibList.appendChild(mk('div', 'inbox-empty', L.empty)); return; }
+  inbox.forEach(m => {
+    const hasNo = m.no != null && m.no !== '';
+    const box = mk('div', 'inbox-msg' + (m.read ? '' : ' unread') + (hasNo ? ' ib-click' : ''));
+    if(hasNo){ box.dataset.no = m.no; box.appendChild(mk('div', 'ib-no', '📨 ' + L.no + ' ' + m.no)); }
+    if(m.title) box.appendChild(mk('div', 'mt', m.title));
+    appendLinked(box, m.text || '');
+    const foot = mk('div', 'ib-foot');
+    foot.appendChild(mk('span', 'md', m.at ? new Date(m.at).toLocaleString(L.loc) : ''));
+    if(hasNo){ const n = repliesFor(m.no).length; const rb = mk('button', 'ib-mini', L.replyBtn + (n ? ' (' + n + ')' : '')); rb.type = 'button'; foot.appendChild(rb); }
+    box.appendChild(foot);
+    ibList.appendChild(box);
+  });
 }
-function openInbox(){
-  renderInbox(); ibOv.classList.add('show');
+
+function renderContact(){
+  const L = ibText(); ibTitle.textContent = L.cTitle; ibList.textContent = '';
+  ibList.appendChild(menuBtn());
+  ibList.appendChild(mk('div', 'cb-wrap ib-hist'));
+  const row = mk('div', 'cb-row');
+  const ta = mk('textarea', 'ib-ta ib-cta'); ta.rows = 1; ta.maxLength = 1000; ta.placeholder = L.cPh;
+  ta.addEventListener('keydown', e => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendContact(); } });
+  const send = mk('button', 'ib-send cb-send', '➤'); send.type = 'button'; send.dataset.act = 'csend';
+  row.appendChild(ta); row.appendChild(send); ibList.appendChild(row);
+  ibList.appendChild(mk('div', 'ib-err ib-cerr'));
+  renderContactHist(true);
+}
+function renderContactHist(first){
+  const box = ibList.querySelector('.ib-hist'); if(!box) return;
+  const L = ibText(), near = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+  box.textContent = '';
+  const all = contacts.map(c => ({ me: true, text: c.text || '', at: c.at || Date.now() }))
+    .concat(adminReps.filter(a => a.kind === 'contact').map(a => ({ me: false, text: a.text || '', at: a.at || Date.now() })))
+    .sort((a,b) => a.at - b.at);
+  if(!all.length){ box.appendChild(mk('div', 'inbox-empty', L.cNone)); syncAdminRead(); return; }
+  all.forEach(x => {
+    const d = mk('div', 'cb' + (x.me ? '' : ' adm'));
+    if(!x.me) d.appendChild(mk('div', 'ib-who', L.cAdm));
+    const t = mk('div', 'cb-t'); if(x.me) t.textContent = x.text; else appendLinked(t, x.text); d.appendChild(t);
+    d.appendChild(mk('div', 'md', new Date(x.at).toLocaleString(L.loc, { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })));
+    box.appendChild(d);
+  });
+  if(first === true || near) box.scrollTop = box.scrollHeight;
+  syncAdminRead();
+}
+let lastContactAt = 0;
+function sendContact(){
+  const L = ibText(), ta = ibList.querySelector('.ib-cta'), err = ibList.querySelector('.ib-cerr');
+  if(!ta || !started) return;
+  const text = ta.value.trim(); if(!text) return;
+  if(Date.now() - lastContactAt < 1500){ err.textContent = L.cWait; return; }
+  lastContactAt = Date.now(); err.textContent = ''; ta.value = ''; ta.focus();
+  ref.child('contact').push({ text: text.slice(0, 1000), at: TS, device, lang: currentLang })
+    .catch(e => { console.warn('contact failed:', e && (e.code || e.message)); err.textContent = L.fail; ta.value = text; lastContactAt = 0; });
+}
+
+function renderThread(){
+  const L = ibText(), m = inbox.find(x => Number(x.no) === Number(ibView));
+  if(!m){ ibView = null; renderList(); return; }
+  ibTitle.textContent = '📨 ' + L.no + ' ' + ibView; ibList.textContent = '';
+  const back = mk('button', 'ib-back', L.back); back.type = 'button'; back.dataset.act = 'back'; ibList.appendChild(back);
+  const box = mk('div', 'inbox-msg');
+  if(m.title) box.appendChild(mk('div', 'mt', m.title));
+  appendLinked(box, m.text || '');
+  if(m.at) box.appendChild(mk('div', 'md', new Date(m.at).toLocaleString(L.loc)));
+  ibList.appendChild(box);
+  ibList.appendChild(mk('div', 'ib-sec', L.yours)).dataset.sec = '1';
+  ibList.appendChild(mk('div', 'ib-reps'));
+  const ta = mk('textarea', 'ib-ta'); ta.maxLength = 500; ta.placeholder = L.ph; ibList.appendChild(ta);
+  ibList.appendChild(mk('div', 'ib-err'));
+  const send = mk('button', 'ib-send', L.send); send.type = 'button'; send.dataset.act = 'send'; ibList.appendChild(send);
+  renderReplyList();
+}
+function renderReplyList(){
+  const box = ibList.querySelector('.ib-reps'), sec = ibList.querySelector('[data-sec]'); if(!box) return;
+  const L = ibText();
+  const list = repliesFor(ibView).map(r => ({ ...r, adm: false })).concat(adminReps.filter(a => Number(a.no) === Number(ibView)).map(a => ({ ...a, adm: true }))).sort((a,b) => (a.at||0) - (b.at||0));
+  box.textContent = '';
+  if(sec) sec.style.display = list.length ? '' : 'none';
+  list.forEach(r => {
+    const d = mk('div', 'ib-rep' + (r.adm ? ' ib-adm' : ''));
+    if(r.adm){ d.appendChild(mk('div', 'ib-who', L.repAdmin)); appendLinked(d, r.text || ''); } else d.appendChild(document.createTextNode(r.text || ''));
+    if(r.at) d.appendChild(mk('div', 'md', new Date(r.at).toLocaleString(L.loc)));
+    box.appendChild(d);
+  });
+  syncAdminRead();
+}
+function sendReply(){
+  const L = ibText(), ta = ibList.querySelector('.ib-ta'), err = ibList.querySelector('.ib-err'), btn = ibList.querySelector('[data-act="send"]');
+  if(!ta || !started) return;
+  const text = ta.value.trim(); if(!text){ err.textContent = L.needText; return; }
+  const m = inbox.find(x => Number(x.no) === Number(ibView));
+  btn.disabled = true; err.textContent = '';
+  ref.child('replies').push({ no: Number(ibView), batch: (m && m.batch) || null, text: text.slice(0, 500), at: TS, device })
+    .then(() => { ta.value = ''; btn.disabled = false; showToast(L.sent); })
+    .catch(e => { console.warn('reply failed:', e && (e.code || e.message)); err.textContent = L.fail; btn.disabled = false; });
+}
+ibList.addEventListener('click', e => {
+  const act = e.target.closest('[data-act]');
+  if(act){ const k = act.dataset.act; if(k === 'back'){ ibView = null; renderInbox(); } else if(k === 'send') sendReply(); else if(k === 'csend') sendContact(); else if(k === 'menu'){ closeInbox(); openDrawer(); } return; }
+  if(e.target.closest('a')) return;                        // الروابط تتفتح عادي
+  const card = e.target.closest('.inbox-msg[data-no]');
+  if(card){ ibView = Number(card.dataset.no); renderInbox(); ibList.scrollTop = 0; }
+});
+
+function updateDot(){
+  refreshDrawer();
+  const n = inbox.filter(m => !m.read).length + adminReps.filter(a => !a.read).length;
+  ibDot.textContent = n > 9 ? '9+' : String(n); ibDot.style.display = n ? 'flex' : 'none'; ibBtn.classList.toggle('alert', n > 0);
+}
+const closeInbox = () => { ibOv.classList.remove('show'); ibView = null; };
+/* تحديث الشاشة المفتوحة بحسب مكانها (من غير ما نمسح اللي كاتبه اللاعب) */
+function refreshView(){
+  if(!ibOv.classList.contains('show')) return;
+  if(ibView != null){ if(!inbox.some(x => Number(x.no) === Number(ibView))){ ibView = null; renderInbox(); } else renderReplyList(); }
+  else if(ibTab === 'contact') renderContactHist();
+  else renderList();
+  syncAdminRead();
+}
+/* القايمة الجانبية: 3 اختيارات */
+let drawer = null, drawerBg = null;
+function buildDrawer(){
+  drawerBg = mk('div', 'ib-drawer-bg'); drawer = mk('div', 'ib-drawer');
+  drawer.appendChild(mk('h3', '', ''));
+  [['msgs'], ['reps'], ['contact']].forEach(([k]) => { const b = mk('button', 'it'); b.type = 'button'; b.dataset.sec = k; drawer.appendChild(b); });
+  drawer.addEventListener('click', e => { const b = e.target.closest('.it'); if(b) openSection(b.dataset.sec); });
+  drawerBg.addEventListener('click', closeDrawer);
+  document.body.appendChild(drawerBg); document.body.appendChild(drawer);
+}
+function refreshDrawer(){
+  if(!drawer) return; const L = ibText();
+  drawer.querySelector('h3').textContent = L.menuTitle;
+  const counts = { msgs: inbox.filter(m => !m.read).length, reps: unreadAdm().filter(a => a.kind !== 'contact').length, contact: unreadAdm().filter(a => a.kind === 'contact').length };
+  const names = { msgs: L.tabMsgs, reps: L.tabReps, contact: L.cTab };
+  drawer.querySelectorAll('.it').forEach(b => { const k = b.dataset.sec; b.textContent = ''; b.classList.toggle('alert', !!counts[k]); b.appendChild(mk('span', '', names[k])); if(counts[k]) b.appendChild(mk('span', 'n', String(counts[k]))); });
+}
+function openDrawer(){ if(!drawer) buildDrawer(); refreshDrawer(); drawerBg.classList.add('show'); drawer.classList.add('show'); }
+function closeDrawer(){ if(!drawer) return; drawerBg.classList.remove('show'); drawer.classList.remove('show'); }
+function openSection(tab){
+  closeDrawer(); ibTab = tab; ibView = null; renderInbox(); ibOv.classList.add('show'); syncAdminRead();
   const unread = inbox.filter(m => !m.read);
-  if(started && unread.length){
+  if(tab === 'msgs' && started && unread.length){
     const upd = {}; unread.forEach(m => { upd[m.id + '/read'] = true; });
     ref.child('inbox').update(upd).catch(e => console.warn('mark read failed:', e && (e.code || e.message)));
   }
 }
-ibBtn.addEventListener('click', openInbox);
-ibClose.addEventListener('click', () => ibOv.classList.remove('show'));
-ibOv.addEventListener('click', e => { if(e.target === ibOv) ibOv.classList.remove('show'); });
+ibBtn.addEventListener('click', () => { if(drawer && drawer.classList.contains('show')) closeDrawer(); else openDrawer(); });
+ibClose.addEventListener('click', closeInbox);
+ibOv.addEventListener('click', e => { if(e.target === ibOv) closeInbox(); });
 
 /* ---------- التشغيل بعد الموافقة ---------- */
 async function start(uid){
-  base = 'stats/' + uid; ref = DB.ref(base);
+  base = 'stats/' + uid; ref = DB.ref(base); myUid = uid;
   try{
     const snap = await ref.once('value'); const s = snap.val() || {};
     moves = Number(s.moves) || 0; localMax = Number(s.maxLevel) || 0;
+    if((s.reviews && Object.keys(s.reviews).length) || s.ratingAskedAt) markRated();
   }catch(e){ console.warn('stats read failed:', e && (e.code || e.message)); }
   started = true;
 
@@ -1659,8 +1914,27 @@ async function start(uid){
     ibBtn.style.display = 'inline-block'; updateDot();
     if(!firstInbox && inbox.some(m => !m.read) && !ibOv.classList.contains('show')) showToast(ibText().fresh);
     firstInbox = false;
-    if(ibOv.classList.contains('show')) renderInbox();
+    refreshView();
   }, err => console.warn('inbox read failed:', err && (err.code || err.message)));
+  ref.child('adminReplies').on('value', s => {
+    const v = s.val() || {};
+    adminReps = Object.keys(v).map(id => ({ id, ...v[id] }));
+    ibBtn.style.display = 'inline-block'; updateDot();
+    const ids = new Set(adminReps.filter(a => !a.read).map(a => a.id));
+    if(knownAdm !== null && [...ids].some(id => !knownAdm.has(id)) && !ibOv.classList.contains('show')) showToast(ibText().freshRep);
+    knownAdm = ids;
+    refreshView();
+  }, err => console.warn('adminReplies read failed:', err && (err.code || err.message)));
+  ref.child('contact').on('value', s => {
+    const v = s.val() || {};
+    contacts = Object.keys(v).map(id => ({ id, ...v[id] }));
+    refreshView();
+  }, err => console.warn('contact read failed:', err && (err.code || err.message)));
+  ref.child('replies').on('value', s => {
+    const v = s.val() || {};
+    replies = Object.keys(v).map(id => ({ id, ...v[id] }));
+    refreshView();
+  }, err => console.warn('replies read failed:', err && (err.code || err.message)));
 }
 
 /* نبدأ أول ما اللاعب يتوافق عليه وتتأكد هويته (من غير ما نعدّل منطق الدخول الأصلي) */
