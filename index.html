@@ -734,7 +734,7 @@ var ENG = (function(){
   var HROW = new Float64Array(65536), MASK11 = new Uint8Array(16 * 16 * 16 * 16);
   var DEADPEN = new Float64Array(65536);
   var POP = new Uint8Array(65536);
-  var PS = [0, 0.30, 0.30, 0.20, 0.15, 0.05], PV = [1, 2, 3, 4, 5];
+  var P1 = 0.9, P2 = 0.1;
 
   function rev(idx){ return ((idx & 15) << 12) | (((idx >> 4) & 15) << 8) | (((idx >> 8) & 15) << 4) | (idx >> 12); }
 
@@ -879,7 +879,8 @@ var ENG = (function(){
     var cp = cprob / n, sum = 0, e;
     for(e = 0; e < n; e++){
       i = emp[e];
-      for(var q = 0; q < PV.length; q++){ var sv = PV[q], sp = PS[sv]; b[i] = sv; sum += sp * moveNode(b, depth, cp * sp); }
+      b[i] = 1; sum += P1 * moveNode(b, depth, cp * P1);
+      b[i] = 2; sum += P2 * moveNode(b, depth, cp * P2);
       b[i] = 0;
     }
     var v = sum / n;
@@ -897,7 +898,7 @@ var ENG = (function(){
 
   function choose(board16, opts){
     opts = opts || {};
-    if(opts.ps){ PS = [0]; PV = []; for(var k = 0; k < opts.ps.length; k++){ PS[k + 1] = opts.ps[k]; if(opts.ps[k] > 0) PV.push(k + 1); } }
+    if(opts.p1 !== undefined){ P1 = opts.p1; P2 = 1 - P1; }
     CPROB = opts.cprob || P.cprob;
     var maxDepth = opts.maxDepth || 12, timeMs = opts.timeMs || 0;
     var root = new Uint8Array(16); for(var i = 0; i < 16; i++) root[i] = board16[i] | 0;
@@ -944,9 +945,7 @@ let ENG_TIME = 600, _engReady = false;
 const ENG_PARAMS = {"empty":557.1044228736097,"merges":401.7038675898317,"monoW":31.8806315950676,"monoP":3.306857574916566,"sumW":11,"sumP":3.3393767217454866,"c11":33271,"deadPerim":6000,"deadCorner":30000,"deadComp":20000};
 function engAnalyze(flat){
   if(!_engReady){ ENG.init(ENG_PARAMS); _engReady = true; }
-  let emp = 0; for(let i = 0; i < 16; i++) if(!flat[i]) emp++;
-  const tms = emp >= 5 ? ENG_TIME : (emp >= 3 ? 1500 : 2500);
-  const r = ENG.choose(flat, { timeMs: tms, maxDepth: 10 });
+  const r = ENG.choose(flat, { timeMs: ENG_TIME, maxDepth: 10, p1: 0.9 });
   if(r.dir < 0) return { bestMove: 'none', depth: 0, ranked: [] };
   const ranked = [];
   for(let d=0; d<4; d++) if(r.values[d] !== undefined) ranked.push({ dir: DIRS[d], score: Math.round(r.values[d]) });
