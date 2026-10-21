@@ -734,7 +734,7 @@ var ENG = (function(){
   var HROW = new Float64Array(65536), MASK11 = new Uint8Array(16 * 16 * 16 * 16);
   var DEADPEN = new Float64Array(65536);
   var POP = new Uint8Array(65536);
-  var P1 = 0.9, P2 = 0.1;
+  var PS = [0, 0.30, 0.30, 0.20, 0.15, 0.05], PV = [1, 2, 3, 4, 5];
 
   function rev(idx){ return ((idx & 15) << 12) | (((idx >> 4) & 15) << 8) | (((idx >> 8) & 15) << 4) | (idx >> 12); }
 
@@ -879,8 +879,7 @@ var ENG = (function(){
     var cp = cprob / n, sum = 0, e;
     for(e = 0; e < n; e++){
       i = emp[e];
-      b[i] = 1; sum += P1 * moveNode(b, depth, cp * P1);
-      b[i] = 2; sum += P2 * moveNode(b, depth, cp * P2);
+      for(var q = 0; q < PV.length; q++){ var sv = PV[q], sp = PS[sv]; b[i] = sv; sum += sp * moveNode(b, depth, cp * sp); }
       b[i] = 0;
     }
     var v = sum / n;
@@ -898,7 +897,7 @@ var ENG = (function(){
 
   function choose(board16, opts){
     opts = opts || {};
-    if(opts.p1 !== undefined){ P1 = opts.p1; P2 = 1 - P1; }
+    if(opts.ps){ PS = [0]; PV = []; for(var k = 0; k < opts.ps.length; k++){ PS[k + 1] = opts.ps[k]; if(opts.ps[k] > 0) PV.push(k + 1); } }
     CPROB = opts.cprob || P.cprob;
     var maxDepth = opts.maxDepth || 12, timeMs = opts.timeMs || 0;
     var root = new Uint8Array(16); for(var i = 0; i < 16; i++) root[i] = board16[i] | 0;
@@ -945,7 +944,9 @@ let ENG_TIME = 600, _engReady = false;
 const ENG_PARAMS = {"empty":557.1044228736097,"merges":401.7038675898317,"monoW":31.8806315950676,"monoP":3.306857574916566,"sumW":11,"sumP":3.3393767217454866,"c11":33271,"deadPerim":6000,"deadCorner":30000,"deadComp":20000};
 function engAnalyze(flat){
   if(!_engReady){ ENG.init(ENG_PARAMS); _engReady = true; }
-  const r = ENG.choose(flat, { timeMs: ENG_TIME, maxDepth: 10, p1: 0.9 });
+  let emp = 0; for(let i = 0; i < 16; i++) if(!flat[i]) emp++;
+  const tms = emp >= 5 ? ENG_TIME : (emp >= 3 ? 1500 : 2500);
+  const r = ENG.choose(flat, { timeMs: tms, maxDepth: 10, ps: [0.2, 0.2, 0.2, 0.2, 0.2] });
   if(r.dir < 0) return { bestMove: 'none', depth: 0, ranked: [] };
   const ranked = [];
   for(let d=0; d<4; d++) if(r.values[d] !== undefined) ranked.push({ dir: DIRS[d], score: Math.round(r.values[d]) });
@@ -1514,7 +1515,7 @@ const isLockedNow = () => { const b = board.map(r => r.map(v => v === 11 ? null 
 let base = null, ref = null, started = false;
 let moves = 0, pendingInc = 0, localMax = 0, wasLocked = false;
 let prev11 = count11(), prevNonEmpty = !isGridEmpty(board), pushedFlag = false;
-let dirty = {}, flushTimer = null;
+let dirty = {}, flushTimer = null, spawnPend = {};
 const errQueue = [], errSeen = new Set(); let errCount = 0;
 
 /* ---------- كتابة مجمّعة ---------- */
@@ -1523,7 +1524,7 @@ function flush(now){
   if(!started) return;
   if(flushTimer){ clearTimeout(flushTimer); flushTimer = null; }
   if(!Object.keys(dirty).length && !pendingInc) return;
-  const upd = dirty; dirty = {};
+  const upd = dirty; dirty = {}; spawnPend = {};
   if(pendingInc){ upd.totalMoves = INC(pendingInc); pendingInc = 0; }
   ref.update(upd).catch(e => console.warn('stats write failed:', e && (e.code || e.message)));
 }
@@ -1584,6 +1585,16 @@ btnBest.addEventListener('click', () => {
   put('aiUse/standard', INC(1)); put('aiMode', 'standard'); put('aiLastAt', TS); schedule();
 }, true);
 
+/* عدّاد الحيوانات اللي اللاعب بيحطها في الخانات الفاضية (لحساب نسب الظهور الفعلية) */
+pickerGrid.addEventListener('click', e => {
+  const btn = e.target.closest('.picker-btn');
+  if(!started || !btn || !selectedCellForPick) return;
+  const level = parseInt(btn.dataset.pick, 10), r = selectedCellForPick.row, c = selectedCellForPick.col;
+  if(!(level >= 1 && level <= 5) || board[r][c]) return;           // بس المستويات 1-5 وفي خانة فاضية
+  spawnPend[level] = (spawnPend[level] || 0) + 1;
+  put('spawn/l' + level, INC(spawnPend[level])); schedule();
+}, true);
+
 /* ---------- الأخطاء ---------- */
 function logErr(msg, src){
   msg = String(msg || 'unknown').slice(0, 300);
@@ -1616,8 +1627,8 @@ const ratedKey = () => 'rated_' + myUid;
 const isRated = () => { try{ return localStorage.getItem(ratedKey()) === '1'; }catch(e){ return false; } };
 const markRated = () => { try{ localStorage.setItem(ratedKey(), '1'); }catch(e){} };
 const RV = {
-  ar: { title:'🎉 تهانينا! وصلت للمستوى الأقصى', sub:'قيّم تجربتك معانا', ph:'اكتب تعليقك (اختياري)', send:'إرسال التقييم', skip:'مش دلوقتي', need:'اختار عدد النجوم الأول', thanks:'🙏 شكرًا على تقييمك!', fail:'تعذّر الإرسال، جرّب تاني' },
-  en: { title:'🎉 Congratulations! You reached the max level', sub:'Rate your experience', ph:'Write a comment (optional)', send:'Submit rating', skip:'Not now', need:'Please choose a star rating first', thanks:'🙏 Thanks for your rating!', fail:'Could not send, please try again' }
+  ar: { title:'🎉 تهانينا! وصلت للمستوى الأقصى', titleManual:'⭐ قيّم اللعبة', sub:'قيّم تجربتك معانا', ph:'اكتب تعليقك (اختياري)', send:'إرسال التقييم', skip:'مش دلوقتي', need:'اختار عدد النجوم الأول', thanks:'🙏 شكرًا على تقييمك!', fail:'تعذّر الإرسال، جرّب تاني' },
+  en: { title:'🎉 Congratulations! You reached the max level', titleManual:'⭐ Rate the game', sub:'Rate your experience', ph:'Write a comment (optional)', send:'Submit rating', skip:'Not now', need:'Please choose a star rating first', thanks:'🙏 Thanks for your rating!', fail:'Could not send, please try again' }
 };
 const rvT = () => RV[currentLang] || RV.en;
 let rvEl = null, rvStars = 0;
@@ -1635,12 +1646,13 @@ function buildRating(){
   rvEl.querySelector('#rv-send').addEventListener('click', submitRating);
 }
 function paintStars(){ rvEl.querySelectorAll('.rv-star').forEach(b => b.classList.toggle('on', +b.dataset.n <= rvStars)); }
-function askRating(){
-  if(!started || isRated()){ if(_showMax) _showMax(); return; }   // اتسأل قبل كده: شاشة التهنئة الأصلية بس
-  markRated(); put('ratingAskedAt', TS); schedule(true);            // مرة واحدة بس لكل حساب (حتى لو قفلها)
+function askRating(manual){
+  if(!started){ if(_showMax && manual !== true) _showMax(); return; }
   if(!rvEl) buildRating();
+  if(rvEl.classList.contains('show')) return;                       // لو الشاشة مفتوحة أصلًا ما نعيدش فتحها
+  if(manual !== true){ put('ratingAskedAt', TS); put('ratingAskCount', INC(1)); schedule(true); }   // بتظهر في كل دمج 10+10
   const T = rvT(); rvStars = 0; paintStars();
-  rvEl.querySelector('#rv-title').textContent = T.title; rvEl.querySelector('#rv-sub').textContent = T.sub;
+  rvEl.querySelector('#rv-title').textContent = manual === true ? T.titleManual : T.title; rvEl.querySelector('#rv-sub').textContent = T.sub;
   rvEl.querySelector('#rv-text').placeholder = T.ph; rvEl.querySelector('#rv-text').value = '';
   rvEl.querySelector('#rv-send').textContent = T.send; rvEl.querySelector('#rv-skip').textContent = T.skip;
   rvEl.querySelector('#rv-err').textContent = ''; rvEl.querySelector('#rv-send').disabled = false;
@@ -1651,7 +1663,7 @@ function submitRating(){
   if(!rvStars){ err.textContent = T.need; return; }
   btn.disabled = true; err.textContent = '';
   const rec = { stars: rvStars, comment: rvEl.querySelector('#rv-text').value.trim().slice(0, 500), at: TS, maxLevel: 11, device, lang: currentLang };
-  ref.child('reviews').push(rec).then(() => { markRated(); rvEl.classList.remove('show'); showToast(T.thanks); })
+  ref.child('reviews').set({ main: rec }).then(() => { put('ratingCount', INC(1)); schedule(true); markRated(); rvEl.classList.remove('show'); showToast(T.thanks); })
     .catch(e => { console.warn('review write failed:', e && (e.code || e.message)); err.textContent = T.fail; btn.disabled = false; });
 }
 
@@ -1682,8 +1694,8 @@ const ibBtn = document.getElementById('inbox-btn'), ibDot = document.getElementB
       ibTitle = document.getElementById('inbox-title'), ibClose = document.getElementById('inbox-close');
 let inbox = [], replies = [], adminReps = [], contacts = [], firstInbox = true, ibView = null, ibTab = 'msgs', knownAdm = null;   // ibView = رقم الرسالة المفتوحة (null = القايمة)
 const IB = {
-  ar: { title:'📬 الرسائل', empty:'مفيش رسائل', fresh:'📬 وصلتك رسالة جديدة', loc:'ar-EG', no:'رسالة رقم', back:'← رجوع', yours:'ردودك', ph:'اكتب ردك هنا...', send:'إرسال الرد', sent:'✅ تم إرسال ردك', fail:'تعذّر الإرسال، جرّب تاني', needText:'اكتب الرد الأول', tap:'💬 اضغط للرد', cnt:'ردودك', tabMsgs:'📬 الرسائل', tabReps:'↩️ الردود', repTo:'↩️ رد على رسالة رقم', repYours:'ردك', repAdmin:'↩️ رد الإدارة', noReps:'مفيش ردود لسه', freshRep:'↩️ وصلك رد جديد', replyBtn:'↩️ رد', repDone:'تم الرد على رسالة رقم', cAdm:'الأدمن', menu:'☰ القائمة', menuTitle:'☰ القائمة', cTitle:'✉️ مراسلة الأدمن', cTab:'✉️ مراسلة الأدمن', cIntro:'محادثة مباشرة مع الأدمن — الرسايل بتفضل محفوظة هنا.', cPh:'اكتب رسالتك للأدمن...', cSend:'إرسال للأدمن', cSent:'✅ وصلت رسالتك للأدمن', cHist:'رسائلك للأدمن', cNone:'ابدأ المحادثة بإرسال رسالة 👋', cWait:'استنى ثواني قبل الرسالة الجاية', cReplyTo:'↩️ رد على رسالتك', cYours:'رسالتك', cAns:'↩️ رد الأدمن', cPending:'⏳ في انتظار الرد' },
-  en: { title:'📬 Messages', empty:'No messages', fresh:'📬 You have a new message', loc:'en-GB', no:'Message #', back:'← Back', yours:'Your replies', ph:'Write your reply...', send:'Send reply', sent:'✅ Reply sent', fail:'Could not send, please try again', needText:'Write a reply first', tap:'💬 Tap to reply', cnt:'Your replies', tabMsgs:'📬 Messages', tabReps:'↩️ Replies', repTo:'↩️ Reply to message #', repYours:'Your reply', repAdmin:'↩️ Admin reply', noReps:'No replies yet', freshRep:'↩️ You got a new reply', replyBtn:'↩️ Reply', repDone:'Replied to message #', cAdm:'Admin', menu:'☰ Menu', menuTitle:'☰ Menu', cTitle:'✉️ Contact admin', cTab:'✉️ Contact admin', cIntro:'Chat directly with the admin — messages stay saved here.', cPh:'Write your message to the admin...', cSend:'Send to admin', cSent:'✅ Message sent to admin', cHist:'Your messages to admin', cNone:'Start the chat by sending a message 👋', cWait:'Please wait a few seconds', cReplyTo:'↩️ Reply to your message', cYours:'Your message', cAns:'↩️ Admin reply', cPending:'⏳ Waiting for a reply' }
+  ar: { title:'📬 الرسائل', empty:'مفيش رسائل', fresh:'📬 وصلتك رسالة جديدة', loc:'ar-EG', no:'رسالة رقم', back:'← رجوع', yours:'ردودك', ph:'اكتب ردك هنا...', send:'إرسال الرد', sent:'✅ تم إرسال ردك', fail:'تعذّر الإرسال، جرّب تاني', needText:'اكتب الرد الأول', tap:'💬 اضغط للرد', cnt:'ردودك', tabMsgs:'📬 الرسائل', rateTab:'⭐ التقييم', tabReps:'↩️ الردود', repTo:'↩️ رد على رسالة رقم', repYours:'ردك', repAdmin:'↩️ رد الإدارة', noReps:'مفيش ردود لسه', freshRep:'↩️ وصلك رد جديد', replyBtn:'↩️ رد', repDone:'تم الرد على رسالة رقم', cAdm:'الأدمن', menu:'☰ القائمة', menuTitle:'☰ القائمة', cTitle:'✉️ مراسلة الأدمن', cTab:'✉️ مراسلة الأدمن', cIntro:'محادثة مباشرة مع الأدمن — الرسايل بتفضل محفوظة هنا.', cPh:'اكتب رسالتك للأدمن...', cSend:'إرسال للأدمن', cSent:'✅ وصلت رسالتك للأدمن', cHist:'رسائلك للأدمن', cNone:'ابدأ المحادثة بإرسال رسالة 👋', cWait:'استنى ثواني قبل الرسالة الجاية', cReplyTo:'↩️ رد على رسالتك', cYours:'رسالتك', cAns:'↩️ رد الأدمن', cPending:'⏳ في انتظار الرد' },
+  en: { title:'📬 Messages', empty:'No messages', fresh:'📬 You have a new message', loc:'en-GB', no:'Message #', back:'← Back', yours:'Your replies', ph:'Write your reply...', send:'Send reply', sent:'✅ Reply sent', fail:'Could not send, please try again', needText:'Write a reply first', tap:'💬 Tap to reply', cnt:'Your replies', tabMsgs:'📬 Messages', rateTab:'⭐ Rating', tabReps:'↩️ Replies', repTo:'↩️ Reply to message #', repYours:'Your reply', repAdmin:'↩️ Admin reply', noReps:'No replies yet', freshRep:'↩️ You got a new reply', replyBtn:'↩️ Reply', repDone:'Replied to message #', cAdm:'Admin', menu:'☰ Menu', menuTitle:'☰ Menu', cTitle:'✉️ Contact admin', cTab:'✉️ Contact admin', cIntro:'Chat directly with the admin — messages stay saved here.', cPh:'Write your message to the admin...', cSend:'Send to admin', cSent:'✅ Message sent to admin', cHist:'Your messages to admin', cNone:'Start the chat by sending a message 👋', cWait:'Please wait a few seconds', cReplyTo:'↩️ Reply to your message', cYours:'Your message', cAns:'↩️ Admin reply', cPending:'⏳ Waiting for a reply' }
 };
 const ibText = () => currentLang === 'ar' ? IB.ar : IB.en;
 { const st = document.createElement('style');
@@ -1857,7 +1869,7 @@ let drawer = null, drawerBg = null;
 function buildDrawer(){
   drawerBg = mk('div', 'ib-drawer-bg'); drawer = mk('div', 'ib-drawer');
   drawer.appendChild(mk('h3', '', ''));
-  [['msgs'], ['reps'], ['contact']].forEach(([k]) => { const b = mk('button', 'it'); b.type = 'button'; b.dataset.sec = k; drawer.appendChild(b); });
+  [['msgs'], ['reps'], ['contact'], ['rate']].forEach(([k]) => { const b = mk('button', 'it'); b.type = 'button'; b.dataset.sec = k; drawer.appendChild(b); });
   drawer.addEventListener('click', e => { const b = e.target.closest('.it'); if(b) openSection(b.dataset.sec); });
   drawerBg.addEventListener('click', closeDrawer);
   document.body.appendChild(drawerBg); document.body.appendChild(drawer);
@@ -1866,12 +1878,13 @@ function refreshDrawer(){
   if(!drawer) return; const L = ibText();
   drawer.querySelector('h3').textContent = L.menuTitle;
   const counts = { msgs: inbox.filter(m => !m.read).length, reps: unreadAdm().filter(a => a.kind !== 'contact').length, contact: unreadAdm().filter(a => a.kind === 'contact').length };
-  const names = { msgs: L.tabMsgs, reps: L.tabReps, contact: L.cTab };
+  const names = { msgs: L.tabMsgs, reps: L.tabReps, contact: L.cTab, rate: L.rateTab };
   drawer.querySelectorAll('.it').forEach(b => { const k = b.dataset.sec; b.textContent = ''; b.classList.toggle('alert', !!counts[k]); b.appendChild(mk('span', '', names[k])); if(counts[k]) b.appendChild(mk('span', 'n', String(counts[k]))); });
 }
 function openDrawer(){ if(!drawer) buildDrawer(); refreshDrawer(); drawerBg.classList.add('show'); drawer.classList.add('show'); }
 function closeDrawer(){ if(!drawer) return; drawerBg.classList.remove('show'); drawer.classList.remove('show'); }
 function openSection(tab){
+  if(tab === 'rate'){ closeDrawer(); askRating(true); return; }
   closeDrawer(); ibTab = tab; ibView = null; renderInbox(); ibOv.classList.add('show'); syncAdminRead();
   const unread = inbox.filter(m => !m.read);
   if(tab === 'msgs' && started && unread.length){
@@ -1889,7 +1902,6 @@ async function start(uid){
   try{
     const snap = await ref.once('value'); const s = snap.val() || {};
     moves = Number(s.moves) || 0; localMax = Number(s.maxLevel) || 0;
-    if((s.reviews && Object.keys(s.reviews).length) || s.ratingAskedAt) markRated();
   }catch(e){ console.warn('stats read failed:', e && (e.code || e.message)); }
   started = true;
 
