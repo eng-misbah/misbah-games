@@ -945,9 +945,7 @@ let ENG_TIME = 600, _engReady = false;
 const ENG_PARAMS = {"empty":557.1044228736097,"merges":401.7038675898317,"monoW":31.8806315950676,"monoP":3.306857574916566,"sumW":11,"sumP":3.3393767217454866,"c11":33271,"deadPerim":6000,"deadCorner":30000,"deadComp":20000};
 function engAnalyze(flat){
   if(!_engReady){ ENG.init(ENG_PARAMS); _engReady = true; }
-  let emp = 0; for(let i = 0; i < 16; i++) if(!flat[i]) emp++;
-  const tms = emp >= 5 ? ENG_TIME : (emp >= 3 ? 1500 : 2500);
-  const r = ENG.choose(flat, { timeMs: tms, maxDepth: 10, p1: 0.9 });
+  const r = ENG.choose(flat, { timeMs: ENG_TIME, maxDepth: 10, p1: 0.9 });
   if(r.dir < 0) return { bestMove: 'none', depth: 0, ranked: [] };
   const ranked = [];
   for(let d=0; d<4; d++) if(r.values[d] !== undefined) ranked.push({ dir: DIRS[d], score: Math.round(r.values[d]) });
