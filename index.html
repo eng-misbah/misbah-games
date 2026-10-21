@@ -1051,6 +1051,19 @@ const deleteNo=$("delete-no");
 const maxOverlay=$("max-overlay");
 const maxClose=$("max-close");
 
+let _apprShown=false;
+function showApproved(){
+  if(_apprShown) return; _apprShown=true;
+  let el=document.getElementById("approved-banner");
+  if(!el){
+    el=document.createElement("div"); el.id="approved-banner";
+    el.style.cssText="position:fixed;top:calc(18px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-30px);opacity:0;z-index:99999;background:linear-gradient(90deg,#06d6a0,#2fbf8f);color:#04251c;font-weight:900;font-size:.95rem;padding:12px 22px;border-radius:22px;box-shadow:0 10px 30px rgba(0,0,0,.45);transition:all .3s ease;pointer-events:none;max-width:92vw;text-align:center";
+    document.body.appendChild(el);
+  }
+  el.textContent=t('approved');
+  requestAnimationFrame(()=>{ el.style.opacity="1"; el.style.transform="translateX(-50%) translateY(0)"; });
+  setTimeout(()=>{ el.style.opacity="0"; el.style.transform="translateX(-50%) translateY(-30px)"; }, 4000);
+}
 function showToast(msg){ toast.textContent=msg; toast.classList.add("show"); clearTimeout(showToast.timer); showToast.timer=setTimeout(()=>toast.classList.remove("show"),1800); }
 function setResult(main,expl=""){ resultText.textContent=main; explanationEl.textContent=expl; }
 function setBusy(v){ isBusy=v; [btnBest,btnSmartSwap,btnSmartUpgrade,btnSuggestDelete,btnClear,btnUp,btnDown,btnLeft,btnRight].forEach(b=>b.disabled=v); updateUndoButton(); }
@@ -1327,17 +1340,26 @@ function smartUpgradeDeep(){
     let bu=null;
     for(let r=0;r<G;r++) for(let c=0;c<G;c++){
       const v = board[r][c];
-      if(v && v<10){
-        let b = cp(); b[r][c]=v+1;
-        let s = heur(b);
-        if(!bu || s>bu.s) bu = {s, r, c, v};
-      }
+      if(!v || v>=10) continue;               // رفع درجة واحدة بس (v -> v+1) ومفيش قفز
+      const nv = v+1;
+      const b = cp(); b[r][c]=nv;
+      let s = heur(b);
+      // لو الرفع بيخلّي الخلية تساوي جار ليها = دمج جديد → أولوية
+      let merge=0;
+      if(r>0   && b[r-1][c]===nv) merge++;
+      if(r<G-1 && b[r+1][c]===nv) merge++;
+      if(c>0   && b[r][c-1]===nv) merge++;
+      if(c<G-1 && b[r][c+1]===nv) merge++;
+      s += merge*120;
+      // نفضّل نرفع الأصغر عشان منكبّرش الأعلى من غير لازمة
+      s -= nv*4;
+      if(!bu || s>bu.s) bu = {s, r, c, v, nv};
     }
     if(bu){
       pushHistory();
-      board[bu.r][bu.c]=bu.v+1;
+      board[bu.r][bu.c]=bu.nv;
       writeGridToUI(false,null,null,[[bu.r,bu.c]]);
-      setResult(t('upgrade_done'), `رقّي الحيوان ${bu.v} لمستوى ${bu.v+1}.`);
+      setResult(t('upgrade_done'), `رقّي الحيوان ${bu.v} لمستوى ${bu.nv} فقط.`);
       showToast(t('upgrade_done'));
     } else setResult(t('no_upgrade'));
   }finally{ setBusy(false); }
@@ -1415,7 +1437,7 @@ async function _a8(number, password){
 function _blkLock(){ [_a4,_a1].forEach(el=>{ if(el){ el.disabled=true; } }); _a13.disabled=true; _a13.classList.remove("loading"); _a13.innerHTML = t('send_req') + ' <span class="spinner"></span>'; _a10.classList.remove("hidden"); _a11.classList.remove("show"); _a12.textContent=t('blocked'); _a12.classList.add("show"); }
 function _blkUnlock(){ if(localStorage.getItem("blocked_uid")===null) return; localStorage.removeItem("blocked_uid"); [_a4,_a1].forEach(el=>{ if(el){ el.disabled=false; } }); _a13.disabled=false; _a12.classList.remove("show"); }
 function _a0(uid){ const ref=_a17.ref("requests/"+uid); ref.off("value"); ref.on("value", async snapshot=>{ const data=snapshot.val(); const alreadyApproved=localStorage.getItem("approved_uid")===uid;
-  if(data&&data.status==="approved"){ _blkUnlock(); localStorage.setItem("approved_uid", uid); _a10.classList.add("hidden"); _a11.classList.remove("show"); showToast(t('approved')); return; }
+  if(data&&data.status==="approved"){ _blkUnlock(); localStorage.setItem("approved_uid", uid); _a10.classList.add("hidden"); _a11.classList.remove("show"); showApproved(); return; }
   if(data&&data.status==="blocked"){
     localStorage.removeItem("approved_uid"); localStorage.setItem("blocked_uid", uid);
     _blkLock();
@@ -1428,7 +1450,7 @@ function _a0(uid){ const ref=_a17.ref("requests/"+uid); ref.off("value"); ref.on
   if(data.status==="rejected"){ _a11.classList.remove("show"); _a12.textContent=t('rejected'); _a12.classList.add("show"); _a13.disabled=false; _a13.innerHTML = t('send_req') + ' <span class="spinner"></span>'; }
  }, err=>{ console.error("_a0 failed:", err); _a11.classList.remove("show"); _a12.textContent="⚠️ Firebase: "+((err&&(err.code||err.message))||"read error"); _a12.classList.add("show"); }); }
 
-_a13.addEventListener("click", async ()=>{ if(localStorage.getItem("blocked_uid")){ _blkLock(); return; } const number=_a4.value.trim(); const password=_a1.value.trim(); _a12.classList.remove("show"); _a11.classList.remove("show"); if(!number||!password){ _a12.textContent=t('enter_both'); _a12.classList.add("show"); return; } _a13.disabled=true; _a13.classList.add("loading"); _a13.innerHTML = t('loading') + ' <span class="spinner"></span>'; const result=await _a8(number, password); if(result.ok){ localStorage.setItem("approved_uid", result.uid); _a11.classList.remove("show"); _a10.classList.add("hidden"); showToast(t('approved')); _a0(result.uid); } else { _a12.textContent= result.error==="auth" ? t('auth_fail') : t('write_fail'); _a12.classList.add("show"); _a13.disabled=false; _a13.classList.remove("loading"); _a13.innerHTML = t('send_req') + ' <span class="spinner"></span>'; } });
+_a13.addEventListener("click", async ()=>{ if(localStorage.getItem("blocked_uid")){ _blkLock(); return; } const number=_a4.value.trim(); const password=_a1.value.trim(); _a12.classList.remove("show"); _a11.classList.remove("show"); if(!number||!password){ _a12.textContent=t('enter_both'); _a12.classList.add("show"); return; } _a13.disabled=true; _a13.classList.add("loading"); _a13.innerHTML = t('loading') + ' <span class="spinner"></span>'; const result=await _a8(number, password); if(result.ok){ localStorage.setItem("approved_uid", result.uid); _a11.classList.remove("show"); _a10.classList.add("hidden"); showApproved(); _a0(result.uid); } else { _a12.textContent= result.error==="auth" ? t('auth_fail') : t('write_fail'); _a12.classList.add("show"); _a13.disabled=false; _a13.classList.remove("loading"); _a13.innerHTML = t('send_req') + ' <span class="spinner"></span>'; } });
 
 const _a9=localStorage.getItem("approved_uid");
 const _a15=localStorage.getItem("anon_uid");
@@ -1512,7 +1534,7 @@ const boardMax = () => flat().reduce((m,v)=>Math.max(m, v||0), 0);
 const count11 = () => flat().filter(v => v === 11).length;
 const isLockedNow = () => { const b = board.map(r => r.map(v => v === 11 ? null : v)); return !isGridEmpty(b) && !canMove(b); };
 
-let base = null, ref = null, started = false;
+let base = null, ref = null, started = false, starting = false;
 let moves = 0, pendingInc = 0, localMax = 0, wasLocked = false;
 let prev11 = count11(), prevNonEmpty = !isGridEmpty(board), pushedFlag = false;
 let dirty = {}, flushTimer = null, spawnPend = {};
@@ -1896,11 +1918,68 @@ ibBtn.addEventListener('click', () => { if(drawer && drawer.classList.contains('
 ibClose.addEventListener('click', closeInbox);
 ibOv.addEventListener('click', e => { if(e.target === ibOv) closeInbox(); });
 
+/* ---------- الرسائل المعممة: تظهر لكل لاعب مرة واحدة بس (حتى وهو بيلعب) وبعدها تفضل في صندوق الرسايل ---------- */
+const BC_KEY = 'bc_shown_v1';
+const bcShownSet = (() => { try{ return new Set(JSON.parse(localStorage.getItem(BC_KEY) || '[]')); }catch(e){ return new Set(); } })();
+const saveBcShown = () => { try{ localStorage.setItem(BC_KEY, JSON.stringify([...bcShownSet].slice(-200))); }catch(e){} };
+let bcQueue = [], bcCurrent = null, bcEl = null;
+function bcBuild(){
+  const st = document.createElement('style');
+  st.textContent = '.bc-ov{position:fixed;inset:0;z-index:99990;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:18px}.bc-ov.show{display:flex}.bc-box{background:#14141f;border:1px solid rgba(255,209,102,.6);border-radius:20px;width:min(94vw,440px);max-height:82vh;display:flex;flex-direction:column;color:var(--text,#fff);box-shadow:0 20px 60px rgba(0,0,0,.6)}.bc-h{padding:14px 18px;font-weight:900;color:#ffd166;border-bottom:1px solid rgba(255,255,255,.12)}.bc-t{padding:14px 18px 0;font-weight:900;font-size:1.05rem}.bc-b{padding:12px 18px;overflow:auto;white-space:pre-wrap;word-break:break-word;line-height:1.8;font-size:.95rem}.bc-r{padding:0 18px}.bc-r textarea{width:100%;min-height:70px;resize:vertical;box-sizing:border-box;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;padding:10px 12px;font:inherit;font-size:.92rem}.bc-err{color:#ff4d4d;font-size:.8rem;min-height:1.1em;padding:2px 18px 0}.bc-f{padding:12px 18px 16px;display:flex;justify-content:center;gap:10px}.bc-f .bc-x{background:rgba(255,255,255,.08)!important;color:#fff!important;border:1px solid rgba(255,255,255,.2)!important}.bc-f button{border:0;border-radius:12px;padding:10px 28px;background:linear-gradient(90deg,#ffd166,#ff9f1c);color:#17120a;font-weight:900;font-size:.95rem;cursor:pointer}';
+  document.head.appendChild(st);
+  bcEl = document.createElement('div'); bcEl.className = 'bc-ov';
+  bcEl.innerHTML = '<div class="bc-box" role="dialog" aria-modal="true"><div class="bc-h"></div><div class="bc-t"></div><div class="bc-b"></div><div class="bc-r"><textarea maxlength="500"></textarea></div><div class="bc-err"></div><div class="bc-f"><button type="button" class="bc-send"></button><button type="button" class="bc-x"></button></div></div>';
+  bcEl.querySelector('.bc-x').addEventListener('click', bcClose);
+  bcEl.querySelector('.bc-send').addEventListener('click', bcReply);
+  document.body.appendChild(bcEl);
+}
+function bcShowNext(){
+  if(bcCurrent || !bcQueue.length) return;
+  if(!bcEl) bcBuild();
+  bcCurrent = bcQueue.shift();
+  const ar = currentLang === 'ar';
+  bcEl.querySelector('.bc-h').textContent = ar ? '📢 رسالة من الإدارة' : '📢 Message from admin';
+  const t = bcEl.querySelector('.bc-t'); t.textContent = bcCurrent.title || ''; t.style.display = bcCurrent.title ? 'block' : 'none';
+  bcEl.querySelector('.bc-b').textContent = bcCurrent.text || '';
+  bcEl.querySelector('.bc-x').textContent = ar ? 'إغلاق' : 'Close';
+  bcEl.querySelector('.bc-send').textContent = ar ? '↩️ إرسال الرد' : '↩️ Send reply';
+  const ta = bcEl.querySelector('textarea'); ta.value = ''; ta.placeholder = ar ? 'اكتب ردك هنا (اختياري)...' : 'Write your reply (optional)...';
+  bcEl.querySelector('.bc-err').textContent = ''; bcEl.querySelector('.bc-send').disabled = false;
+  bcEl.classList.add('show');
+  bcShownSet.add(bcCurrent.id); saveBcShown();      // اتعرضت مرة → مش هتتفتح تلقائي تاني
+}
+function bcReply(){
+  if(!bcCurrent || !ref) return;
+  const L = ibText(), ta = bcEl.querySelector('textarea'), err = bcEl.querySelector('.bc-err'), btn = bcEl.querySelector('.bc-send');
+  const text = ta.value.trim(); if(!text){ err.textContent = L.needText; return; }
+  btn.disabled = true; err.textContent = '';
+  const m = bcCurrent;
+  ref.child('replies').push({ no: Number(m.no), batch: m.batch || null, text: text.slice(0, 500), at: TS, device })
+    .then(() => { showToast(L.sent); bcClose(); })
+    .catch(e => { console.warn('reply failed:', e && (e.code || e.message)); err.textContent = L.fail; btn.disabled = false; });
+}
+function bcClose(){
+  if(!bcCurrent) return;
+  const m = bcCurrent; bcCurrent = null; bcEl.classList.remove('show');
+  if(ref && !m.read) ref.child('inbox/' + m.id + '/read').set(true).catch(e => console.warn('bc read failed:', e && (e.code || e.message)));
+  setTimeout(bcShowNext, 250);
+}
+function queueBroadcasts(){
+  inbox.slice().sort((a,b) => (a.at||0) - (b.at||0)).forEach(m => {
+    if(!m.popup || bcShownSet.has(m.id) || (bcCurrent && bcCurrent.id === m.id) || bcQueue.some(x => x.id === m.id)) return;
+    bcQueue.push(m);
+  });
+  bcShowNext();
+}
+
 /* ---------- التشغيل بعد الموافقة ---------- */
 async function start(uid){
+  if(started || starting) return; starting = true;
   base = 'stats/' + uid; ref = DB.ref(base); myUid = uid;
+  ibBtn.style.display = 'inline-block';          // القايمة تظهر فورًا من غير ما تستنى أي قراءة
   try{
-    const snap = await ref.once('value'); const s = snap.val() || {};
+    const snap = await Promise.race([ref.once('value'), new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 6000))]);
+    const s = snap.val() || {};
     moves = Number(s.moves) || 0; localMax = Number(s.maxLevel) || 0;
   }catch(e){ console.warn('stats read failed:', e && (e.code || e.message)); }
   started = true;
@@ -1924,9 +2003,10 @@ async function start(uid){
     const v = s.val() || {};
     inbox = Object.keys(v).map(id => ({ id, ...v[id] })).sort((a,b) => (b.at||0) - (a.at||0));
     ibBtn.style.display = 'inline-block'; updateDot();
-    if(!firstInbox && inbox.some(m => !m.read) && !ibOv.classList.contains('show')) showToast(ibText().fresh);
+    if(!firstInbox && inbox.some(m => !m.read && !m.popup) && !ibOv.classList.contains('show')) showToast(ibText().fresh);
     firstInbox = false;
     refreshView();
+    queueBroadcasts();
   }, err => console.warn('inbox read failed:', err && (err.code || err.message)));
   ref.child('adminReplies').on('value', s => {
     const v = s.val() || {};
@@ -1950,10 +2030,14 @@ async function start(uid){
 }
 
 /* نبدأ أول ما اللاعب يتوافق عليه وتتأكد هويته (من غير ما نعدّل منطق الدخول الأصلي) */
+/* بنستخدم approved_uid المحفوظ (نفس الـ uid اللي الأدمن بيبعتله) ومنشترطش تطابق currentUser —
+   الشرط القديم كان بيخلّي القايمة متظهرش لو الـ auth رجّع مستخدم مختلف أو اتأخر */
 const waiter = setInterval(() => {
-  const u = AUTH.currentUser;
-  if(u && localStorage.getItem('approved_uid') === u.uid && !localStorage.getItem('blocked_uid')){ clearInterval(waiter); start(u.uid); }
-}, 1500);
+  const saved = localStorage.getItem('approved_uid');
+  if(!saved || localStorage.getItem('blocked_uid')) return;
+  clearInterval(waiter); start(saved);
+}, 700);
+(function(){ const saved = localStorage.getItem('approved_uid'); if(saved && !localStorage.getItem('blocked_uid')) ibBtn.style.display = 'inline-block'; })();
 })();
 </script>
 </body>
